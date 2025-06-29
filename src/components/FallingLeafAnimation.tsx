@@ -432,7 +432,7 @@ export const FallingLeafAnimation: React.FC<FallingLeafAnimationProps> = ({
       )}
 
       {/* Controls */}
-      <div className="absolute bottom-6 right-6 z-10 flex gap-3">
+      <div className="absolute bottom-24 right-6 z-10 flex gap-3">
         <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
