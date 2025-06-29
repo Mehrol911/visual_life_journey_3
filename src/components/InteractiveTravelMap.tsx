@@ -163,48 +163,103 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
     // Create main group for map elements
     const mapGroup = svg.append("g").attr("class", "map-group");
 
-    // Enhanced country code mapping for better matching
-    const countryCodeMapping: { [key: string]: string } = {
-      'United States': 'US',
-      'United Kingdom': 'GB', 
-      'France': 'FR',
-      'Germany': 'DE',
-      'Italy': 'IT',
-      'Spain': 'ES',
-      'Japan': 'JP',
-      'China': 'CN',
-      'India': 'IN',
-      'Australia': 'AU',
-      'Brazil': 'BR',
-      'Canada': 'CA',
-      'Russia': 'RU',
-      'South Korea': 'KR',
-      'Mexico': 'MX',
-      'Turkey': 'TR',
-      'Thailand': 'TH',
-      'United Arab Emirates': 'AE',
-      'Singapore': 'SG',
-      'Egypt': 'EG',
-      'South Africa': 'ZA',
-      'Argentina': 'AR',
-      'Chile': 'CL',
-      'Peru': 'PE',
-      'Colombia': 'CO',
-      'Uzbekistan': 'UZ',
-      'Kazakhstan': 'KZ',
-      'Morocco': 'MA',
-      'Kenya': 'KE',
-      'Nigeria': 'NG',
-      'Indonesia': 'ID',
-      'Malaysia': 'MY',
-      'Philippines': 'PH',
-      'Vietnam': 'VN'
+    // COMPREHENSIVE country code and name mapping for better matching
+    const countryMapping: { [key: string]: string[] } = {
+      'United States': ['US', 'USA', 'United States', 'United States of America', 'America'],
+      'United Kingdom': ['GB', 'UK', 'GBR', 'United Kingdom', 'Britain', 'Great Britain', 'England'], 
+      'France': ['FR', 'FRA', 'France'],
+      'Germany': ['DE', 'DEU', 'Germany', 'Deutschland'],
+      'Italy': ['IT', 'ITA', 'Italy', 'Italia'],
+      'Spain': ['ES', 'ESP', 'Spain', 'España'],
+      'Japan': ['JP', 'JPN', 'Japan'],
+      'China': ['CN', 'CHN', 'China', 'People\'s Republic of China'],
+      'India': ['IN', 'IND', 'India'],
+      'Australia': ['AU', 'AUS', 'Australia'],
+      'Brazil': ['BR', 'BRA', 'Brazil', 'Brasil'],
+      'Canada': ['CA', 'CAN', 'Canada'],
+      'Russia': ['RU', 'RUS', 'Russia', 'Russian Federation'],
+      'South Korea': ['KR', 'KOR', 'Korea', 'South Korea', 'Republic of Korea'],
+      'Mexico': ['MX', 'MEX', 'Mexico', 'México'],
+      'Turkey': ['TR', 'TUR', 'Turkey', 'Türkiye'],
+      'Thailand': ['TH', 'THA', 'Thailand'],
+      'United Arab Emirates': ['AE', 'ARE', 'UAE', 'United Arab Emirates'],
+      'Singapore': ['SG', 'SGP', 'Singapore'],
+      'Egypt': ['EG', 'EGY', 'Egypt'],
+      'South Africa': ['ZA', 'ZAF', 'South Africa'],
+      'Argentina': ['AR', 'ARG', 'Argentina'],
+      'Chile': ['CL', 'CHL', 'Chile'],
+      'Peru': ['PE', 'PER', 'Peru'],
+      'Colombia': ['CO', 'COL', 'Colombia'],
+      'Uzbekistan': ['UZ', 'UZB', 'Uzbekistan'],
+      'Kazakhstan': ['KZ', 'KAZ', 'Kazakhstan'],
+      'Morocco': ['MA', 'MAR', 'Morocco'],
+      'Kenya': ['KE', 'KEN', 'Kenya'],
+      'Nigeria': ['NG', 'NGA', 'Nigeria'],
+      'Indonesia': ['ID', 'IDN', 'Indonesia'],
+      'Malaysia': ['MY', 'MYS', 'Malaysia'],
+      'Philippines': ['PH', 'PHL', 'Philippines'],
+      'Vietnam': ['VN', 'VNM', 'Vietnam']
     };
 
-    // Get visited country codes from cities
-    const visitedCountryCodes = new Set(
-      sampleTravelData.cities.map(city => countryCodeMapping[city.country]).filter(Boolean)
-    );
+    // Create a comprehensive set of visited country identifiers
+    const visitedCountryIdentifiers = new Set<string>();
+    
+    sampleTravelData.cities.forEach(city => {
+      const countryName = city.country;
+      const mappings = countryMapping[countryName];
+      
+      if (mappings) {
+        // Add all possible identifiers for this country
+        mappings.forEach(identifier => {
+          visitedCountryIdentifiers.add(identifier.toLowerCase());
+        });
+      }
+      
+      // Also add the exact country name
+      visitedCountryIdentifiers.add(countryName.toLowerCase());
+    });
+
+    console.log('Visited country identifiers:', Array.from(visitedCountryIdentifiers));
+
+    // Enhanced function to check if a country is visited
+    const isCountryVisited = (countryFeature: any): boolean => {
+      const props = countryFeature.properties;
+      
+      // Get all possible identifiers for this country feature
+      const possibleIdentifiers = [
+        props.ISO_A2,
+        props.ISO_A3, 
+        props.ADM0_A3,
+        props.SOV_A3,
+        props.WB_A2,
+        props.WB_A3,
+        props.NAME,
+        props.NAME_EN,
+        props.NAME_LONG,
+        props.ADMIN,
+        props.SOVEREIGNT,
+        props.GEOUNIT,
+        props.NAME_SORT,
+        props.FORMAL_EN,
+        props.FORMAL_FR
+      ].filter(Boolean).map(id => id.toLowerCase());
+      
+      // Check if any identifier matches our visited countries
+      const isVisited = possibleIdentifiers.some(identifier => 
+        visitedCountryIdentifiers.has(identifier)
+      );
+      
+      // Debug logging for Argentina specifically
+      if (possibleIdentifiers.some(id => id.includes('arg') || id.includes('argentina'))) {
+        console.log('Argentina country feature:', {
+          identifiers: possibleIdentifiers,
+          isVisited,
+          visitedSet: Array.from(visitedCountryIdentifiers)
+        });
+      }
+      
+      return isVisited;
+    };
 
     // Draw countries
     mapGroup.selectAll(".country")
@@ -214,16 +269,14 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
       .attr("class", "country")
       .attr("d", path)
       .attr("fill", (d: any) => {
-        const countryCode = d.properties.ISO_A2 || d.properties.ISO_A3 || d.properties.ADM0_A3;
-        const isVisited = visitedCountryCodes.has(countryCode);
+        const isVisited = isCountryVisited(d);
         return isVisited ? theme.colors.primary : '#f3f4f6';
       })
       .attr("stroke", "#e5e7eb")
       .attr("stroke-width", 0.5)
       .style("cursor", "pointer")
       .on("mouseover", function(event, d: any) {
-        const countryCode = d.properties.ISO_A2 || d.properties.ISO_A3 || d.properties.ADM0_A3;
-        const isVisited = visitedCountryCodes.has(countryCode);
+        const isVisited = isCountryVisited(d);
         
         d3.select(this)
           .attr("fill", isVisited ? theme.colors.accent : '#e5e7eb');
@@ -232,14 +285,13 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
           x: event.pageX,
           y: event.pageY,
           content: {
-            name: d.properties.NAME || d.properties.NAME_EN,
+            name: d.properties.NAME || d.properties.NAME_EN || d.properties.ADMIN,
             visited: isVisited
           }
         });
       })
       .on("mouseout", function(event, d: any) {
-        const countryCode = d.properties.ISO_A2 || d.properties.ISO_A3 || d.properties.ADM0_A3;
-        const isVisited = visitedCountryCodes.has(countryCode);
+        const isVisited = isCountryVisited(d);
         
         d3.select(this)
           .attr("fill", isVisited ? theme.colors.primary : '#f3f4f6');
@@ -587,7 +639,7 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2 }}
-        className="relative max-h-[70vh] overflow-y-auto pr-4"
+        className="relative max-h-[70vh] overflow-y-auto pr-4 timeline-container"
         style={{
           scrollbarWidth: 'thin',
           scrollbarColor: `${theme.colors.primary}40 transparent`
@@ -611,7 +663,7 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
           }
         `}</style>
         
-        <div className="timeline-container">
+        <div>
           {/* Timeline line */}
           <div 
             className="absolute left-8 top-0 bottom-0 w-0.5"
