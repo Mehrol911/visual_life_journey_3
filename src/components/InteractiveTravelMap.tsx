@@ -163,101 +163,48 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
     // Create main group for map elements
     const mapGroup = svg.append("g").attr("class", "map-group");
 
-    // IMPROVED: Enhanced country code mapping for better matching
-    const countryCodeMapping: { [key: string]: string[] } = {
-      'United States': ['US', 'USA', 'United States of America'],
-      'United Kingdom': ['GB', 'UK', 'GBR', 'United Kingdom'], 
-      'France': ['FR', 'FRA', 'France'],
-      'Germany': ['DE', 'DEU', 'Germany'],
-      'Italy': ['IT', 'ITA', 'Italy'],
-      'Spain': ['ES', 'ESP', 'Spain'],
-      'Japan': ['JP', 'JPN', 'Japan'],
-      'China': ['CN', 'CHN', 'China'],
-      'India': ['IN', 'IND', 'India'],
-      'Australia': ['AU', 'AUS', 'Australia'],
-      'Brazil': ['BR', 'BRA', 'Brazil'],
-      'Canada': ['CA', 'CAN', 'Canada'],
-      'Russia': ['RU', 'RUS', 'Russia'],
-      'South Korea': ['KR', 'KOR', 'Korea'],
-      'Mexico': ['MX', 'MEX', 'Mexico'],
-      'Turkey': ['TR', 'TUR', 'Turkey'],
-      'Thailand': ['TH', 'THA', 'Thailand'],
-      'United Arab Emirates': ['AE', 'ARE', 'UAE'],
-      'Singapore': ['SG', 'SGP', 'Singapore'],
-      'Egypt': ['EG', 'EGY', 'Egypt'],
-      'South Africa': ['ZA', 'ZAF', 'South Africa'],
-      'Argentina': ['AR', 'ARG', 'Argentina'],
-      'Chile': ['CL', 'CHL', 'Chile'],
-      'Peru': ['PE', 'PER', 'Peru'],
-      'Colombia': ['CO', 'COL', 'Colombia'],
-      'Uzbekistan': ['UZ', 'UZB', 'Uzbekistan'],
-      'Kazakhstan': ['KZ', 'KAZ', 'Kazakhstan'],
-      'Morocco': ['MA', 'MAR', 'Morocco'],
-      'Kenya': ['KE', 'KEN', 'Kenya'],
-      'Nigeria': ['NG', 'NGA', 'Nigeria'],
-      'Indonesia': ['ID', 'IDN', 'Indonesia'],
-      'Malaysia': ['MY', 'MYS', 'Malaysia'],
-      'Philippines': ['PH', 'PHL', 'Philippines'],
-      'Vietnam': ['VN', 'VNM', 'Vietnam']
+    // Enhanced country code mapping for better matching
+    const countryCodeMapping: { [key: string]: string } = {
+      'United States': 'US',
+      'United Kingdom': 'GB', 
+      'France': 'FR',
+      'Germany': 'DE',
+      'Italy': 'IT',
+      'Spain': 'ES',
+      'Japan': 'JP',
+      'China': 'CN',
+      'India': 'IN',
+      'Australia': 'AU',
+      'Brazil': 'BR',
+      'Canada': 'CA',
+      'Russia': 'RU',
+      'South Korea': 'KR',
+      'Mexico': 'MX',
+      'Turkey': 'TR',
+      'Thailand': 'TH',
+      'United Arab Emirates': 'AE',
+      'Singapore': 'SG',
+      'Egypt': 'EG',
+      'South Africa': 'ZA',
+      'Argentina': 'AR',
+      'Chile': 'CL',
+      'Peru': 'PE',
+      'Colombia': 'CO',
+      'Uzbekistan': 'UZ',
+      'Kazakhstan': 'KZ',
+      'Morocco': 'MA',
+      'Kenya': 'KE',
+      'Nigeria': 'NG',
+      'Indonesia': 'ID',
+      'Malaysia': 'MY',
+      'Philippines': 'PH',
+      'Vietnam': 'VN'
     };
 
-    // FIXED: Create a proper lookup for visited countries
-    const visitedCountryCodes = new Set<string>();
-    const visitedCountryNames = new Set<string>();
-    
-    // Add all country names and their codes to visited sets
-    sampleTravelData.cities.forEach(city => {
-      visitedCountryNames.add(city.country);
-      const codes = countryCodeMapping[city.country];
-      if (codes) {
-        codes.forEach(code => visitedCountryCodes.add(code));
-      }
-    });
-
-    console.log('Visited country names:', Array.from(visitedCountryNames));
-    console.log('Visited country codes:', Array.from(visitedCountryCodes));
-
-    // IMPROVED: Function to check if a country is visited
-    const isCountryVisited = (countryFeature: any): boolean => {
-      const props = countryFeature.properties;
-      
-      // Check multiple possible property names for country codes and names
-      const possibleCodes = [
-        props.ISO_A2,
-        props.ISO_A3, 
-        props.ADM0_A3,
-        props.SOV_A3,
-        props.WB_A2,
-        props.WB_A3
-      ].filter(Boolean);
-      
-      const possibleNames = [
-        props.NAME,
-        props.NAME_EN,
-        props.NAME_LONG,
-        props.ADMIN,
-        props.SOVEREIGNT,
-        props.GEOUNIT
-      ].filter(Boolean);
-      
-      // Check if any code matches
-      const codeMatch = possibleCodes.some(code => visitedCountryCodes.has(code));
-      
-      // Check if any name matches
-      const nameMatch = possibleNames.some(name => visitedCountryNames.has(name));
-      
-      // Log for debugging
-      if (codeMatch || nameMatch) {
-        console.log('Visited country found:', {
-          codes: possibleCodes,
-          names: possibleNames,
-          codeMatch,
-          nameMatch
-        });
-      }
-      
-      return codeMatch || nameMatch;
-    };
+    // Get visited country codes from cities
+    const visitedCountryCodes = new Set(
+      sampleTravelData.cities.map(city => countryCodeMapping[city.country]).filter(Boolean)
+    );
 
     // Draw countries
     mapGroup.selectAll(".country")
@@ -267,14 +214,16 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
       .attr("class", "country")
       .attr("d", path)
       .attr("fill", (d: any) => {
-        const isVisited = isCountryVisited(d);
+        const countryCode = d.properties.ISO_A2 || d.properties.ISO_A3 || d.properties.ADM0_A3;
+        const isVisited = visitedCountryCodes.has(countryCode);
         return isVisited ? theme.colors.primary : '#f3f4f6';
       })
       .attr("stroke", "#e5e7eb")
       .attr("stroke-width", 0.5)
       .style("cursor", "pointer")
       .on("mouseover", function(event, d: any) {
-        const isVisited = isCountryVisited(d);
+        const countryCode = d.properties.ISO_A2 || d.properties.ISO_A3 || d.properties.ADM0_A3;
+        const isVisited = visitedCountryCodes.has(countryCode);
         
         d3.select(this)
           .attr("fill", isVisited ? theme.colors.accent : '#e5e7eb');
@@ -283,13 +232,14 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
           x: event.pageX,
           y: event.pageY,
           content: {
-            name: d.properties.NAME || d.properties.NAME_EN || d.properties.ADMIN,
+            name: d.properties.NAME || d.properties.NAME_EN,
             visited: isVisited
           }
         });
       })
       .on("mouseout", function(event, d: any) {
-        const isVisited = isCountryVisited(d);
+        const countryCode = d.properties.ISO_A2 || d.properties.ISO_A3 || d.properties.ADM0_A3;
+        const isVisited = visitedCountryCodes.has(countryCode);
         
         d3.select(this)
           .attr("fill", isVisited ? theme.colors.primary : '#f3f4f6');
