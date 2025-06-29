@@ -3,6 +3,7 @@ import { MapPin, Plus, X, Calendar, Sparkles, Navigation, Globe, Plane, ChevronD
 import { motion, AnimatePresence } from 'framer-motion';
 import { ProfessionTheme } from '../types';
 import { WORLD_CITIES, getCitiesByCountry, getAllCountries, findCityCoordinates } from '../data/worldCities';
+import { InteractiveTravelMap } from './InteractiveTravelMap';
 
 interface Visit {
   id: string;
@@ -137,6 +138,71 @@ export const WorldMap: React.FC<WorldMapProps> = ({ theme, onComplete }) => {
       onComplete(visits);
     }
   };
+
+  // Convert visits to travel data format for the interactive map
+  const travelData = {
+    cities: visits.map(visit => ({
+      city: visit.city,
+      country: visit.country,
+      date: visit.date,
+      coordinates: [visit.lng || 0, visit.lat || 0] as [number, number],
+      description: `Visited ${visit.city} in ${visit.date}`
+    })),
+    countries: [...new Set(visits.map(visit => {
+      // Map country names to ISO codes (simplified mapping)
+      const countryCodeMap: { [key: string]: string } = {
+        'United States': 'US',
+        'United Kingdom': 'GB',
+        'France': 'FR',
+        'Germany': 'DE',
+        'Italy': 'IT',
+        'Spain': 'ES',
+        'Japan': 'JP',
+        'China': 'CN',
+        'India': 'IN',
+        'Australia': 'AU',
+        'Brazil': 'BR',
+        'Canada': 'CA',
+        'Russia': 'RU',
+        'South Korea': 'KR',
+        'Mexico': 'MX',
+        'Turkey': 'TR',
+        'Thailand': 'TH',
+        'United Arab Emirates': 'AE',
+        'Singapore': 'SG',
+        'Egypt': 'EG',
+        'South Africa': 'ZA',
+        'Argentina': 'AR',
+        'Chile': 'CL',
+        'Peru': 'PE',
+        'Colombia': 'CO',
+        'Uzbekistan': 'UZ',
+        'Kazakhstan': 'KZ',
+        'Morocco': 'MA',
+        'Kenya': 'KE',
+        'Nigeria': 'NG',
+        'Indonesia': 'ID',
+        'Malaysia': 'MY',
+        'Philippines': 'PH',
+        'Vietnam': 'VN'
+      };
+      return countryCodeMap[visit.country] || visit.country.substring(0, 2).toUpperCase();
+    }))]
+  };
+
+  // If visualizing and we have visits, show the interactive map
+  if (isVisualizing && visits.length > 0) {
+    return (
+      <InteractiveTravelMap 
+        theme={theme} 
+        travelData={travelData}
+        onBack={() => {
+          setIsVisualizing(false);
+          setShowForm(true);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="h-full flex items-center justify-center p-8 relative overflow-hidden">
