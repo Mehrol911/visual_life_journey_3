@@ -82,7 +82,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, lifeSta
         return (
           <ProfileSettings 
             user={user} 
-            onBack={() => setActiveView('tree')}
+            onBack={() => setActiveView('reflection')}
             onProfileUpdate={handleProfileUpdate}
           />
         );
