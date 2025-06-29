@@ -895,7 +895,7 @@ export const LifeTree3D: React.FC<LifeTree3DProps> = ({ lifeStats, theme }) => {
       </AnimatePresence>
 
       {/* Control Buttons */}
-      <div className="absolute bottom-24 right-24 z-10 flex gap-3">
+      <div className="absolute bottom-24 left-24 z-10 flex gap-3">
         <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
