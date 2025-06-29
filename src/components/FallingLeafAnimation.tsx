@@ -383,7 +383,7 @@ export const FallingLeafAnimation: React.FC<FallingLeafAnimationProps> = ({
                   onChange={(e) => setAnimationSpeed(parseFloat(e.target.value))}
                   className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                   style={{
-                    background: `linear-gradient(to right, ${theme.colors.primary} 0%, ${theme.colors.primary} ${(animationSpeed / 10) * 100}%, #e5e7eb ${(animationSpeed / 10) * 100}%, #e5e7eb 100%)`
+                    background: `linear-gradient(to right, ${theme.colors.primary} 0%, ${theme.colors.primary} ${(animationSpeed / 20) * 100}%, #e5e7eb ${(animationSpeed / 20) * 100}%, #e5e7eb 100%)`
                   }}
                 />
                 <div className="flex justify-between text-xs text-gray-500 mt-1">
