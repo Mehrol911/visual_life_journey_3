@@ -432,7 +432,7 @@ export const FallingLeafAnimation: React.FC<FallingLeafAnimationProps> = ({
       )}
 
       {/* Controls */}
-      <div className="absolute bottom-6 right-6 z-10 flex gap-3">
+      <div className="absolute bottom-24 right-6 z-10 flex gap-3">
         <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
@@ -484,7 +484,7 @@ export const FallingLeafAnimation: React.FC<FallingLeafAnimationProps> = ({
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
-            className="absolute bottom-20 right-6 z-10 p-6 rounded-2xl backdrop-blur-lg border shadow-lg"
+            className="absolute bottom-40 right-6 z-10 p-6 rounded-2xl backdrop-blur-lg border shadow-lg"
             style={{
               background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
               borderColor: theme.colors.primary + '20',
