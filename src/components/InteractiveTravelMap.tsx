@@ -163,49 +163,53 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
     // Create main group for map elements
     const mapGroup = svg.append("g").attr("class", "map-group");
 
-    // COMPREHENSIVE country code and name mapping for better matching
+    // COMPREHENSIVE country mapping - includes all possible variations
     const countryMapping: { [key: string]: string[] } = {
-      'United States': ['US', 'USA', 'United States', 'United States of America', 'America'],
-      'United Kingdom': ['GB', 'UK', 'GBR', 'United Kingdom', 'Britain', 'Great Britain', 'England'], 
-      'France': ['FR', 'FRA', 'France'],
-      'Germany': ['DE', 'DEU', 'Germany', 'Deutschland'],
-      'Italy': ['IT', 'ITA', 'Italy', 'Italia'],
-      'Spain': ['ES', 'ESP', 'Spain', 'España'],
-      'Japan': ['JP', 'JPN', 'Japan'],
-      'China': ['CN', 'CHN', 'China', 'People\'s Republic of China'],
-      'India': ['IN', 'IND', 'India'],
-      'Australia': ['AU', 'AUS', 'Australia'],
-      'Brazil': ['BR', 'BRA', 'Brazil', 'Brasil'],
+      'United States': ['US', 'USA', 'United States', 'United States of America', 'America', 'U.S.A.', 'U.S.'],
+      'United Kingdom': ['GB', 'UK', 'GBR', 'United Kingdom', 'Britain', 'Great Britain', 'England', 'U.K.'], 
+      'France': ['FR', 'FRA', 'France', 'French Republic'],
+      'Germany': ['DE', 'DEU', 'Germany', 'Deutschland', 'Federal Republic of Germany'],
+      'Italy': ['IT', 'ITA', 'Italy', 'Italia', 'Italian Republic'],
+      'Spain': ['ES', 'ESP', 'Spain', 'España', 'Kingdom of Spain'],
+      'Japan': ['JP', 'JPN', 'Japan', 'Nippon', 'Nihon'],
+      'China': ['CN', 'CHN', 'China', 'People\'s Republic of China', 'PRC'],
+      'India': ['IN', 'IND', 'India', 'Republic of India', 'Bharat'],
+      'Australia': ['AU', 'AUS', 'Australia', 'Commonwealth of Australia', 'Oceania'],
+      'Brazil': ['BR', 'BRA', 'Brazil', 'Brasil', 'Federative Republic of Brazil'],
       'Canada': ['CA', 'CAN', 'Canada'],
-      'Russia': ['RU', 'RUS', 'Russia', 'Russian Federation'],
-      'South Korea': ['KR', 'KOR', 'Korea', 'South Korea', 'Republic of Korea'],
-      'Mexico': ['MX', 'MEX', 'Mexico', 'México'],
-      'Turkey': ['TR', 'TUR', 'Turkey', 'Türkiye'],
-      'Thailand': ['TH', 'THA', 'Thailand'],
-      'United Arab Emirates': ['AE', 'ARE', 'UAE', 'United Arab Emirates'],
-      'Singapore': ['SG', 'SGP', 'Singapore'],
-      'Egypt': ['EG', 'EGY', 'Egypt'],
-      'South Africa': ['ZA', 'ZAF', 'South Africa'],
-      'Argentina': ['AR', 'ARG', 'Argentina'],
-      'Chile': ['CL', 'CHL', 'Chile'],
-      'Peru': ['PE', 'PER', 'Peru'],
-      'Colombia': ['CO', 'COL', 'Colombia'],
-      'Uzbekistan': ['UZ', 'UZB', 'Uzbekistan'],
-      'Kazakhstan': ['KZ', 'KAZ', 'Kazakhstan'],
-      'Morocco': ['MA', 'MAR', 'Morocco'],
-      'Kenya': ['KE', 'KEN', 'Kenya'],
-      'Nigeria': ['NG', 'NGA', 'Nigeria'],
-      'Indonesia': ['ID', 'IDN', 'Indonesia'],
+      'Russia': ['RU', 'RUS', 'Russia', 'Russian Federation', 'USSR'],
+      'South Korea': ['KR', 'KOR', 'Korea', 'South Korea', 'Republic of Korea', 'S. Korea'],
+      'Mexico': ['MX', 'MEX', 'Mexico', 'México', 'United Mexican States'],
+      'Turkey': ['TR', 'TUR', 'Turkey', 'Türkiye', 'Republic of Turkey'],
+      'Thailand': ['TH', 'THA', 'Thailand', 'Kingdom of Thailand'],
+      'United Arab Emirates': ['AE', 'ARE', 'UAE', 'United Arab Emirates', 'U.A.E.'],
+      'Singapore': ['SG', 'SGP', 'Singapore', 'Republic of Singapore'],
+      'Egypt': ['EG', 'EGY', 'Egypt', 'Arab Republic of Egypt'],
+      'South Africa': ['ZA', 'ZAF', 'South Africa', 'Republic of South Africa', 'RSA'],
+      'Argentina': ['AR', 'ARG', 'Argentina', 'Argentine Republic'],
+      'Chile': ['CL', 'CHL', 'Chile', 'Republic of Chile'],
+      'Peru': ['PE', 'PER', 'Peru', 'Republic of Peru'],
+      'Colombia': ['CO', 'COL', 'Colombia', 'Republic of Colombia'],
+      'Uzbekistan': ['UZ', 'UZB', 'Uzbekistan', 'Republic of Uzbekistan'],
+      'Kazakhstan': ['KZ', 'KAZ', 'Kazakhstan', 'Republic of Kazakhstan'],
+      'Morocco': ['MA', 'MAR', 'Morocco', 'Kingdom of Morocco'],
+      'Kenya': ['KE', 'KEN', 'Kenya', 'Republic of Kenya'],
+      'Nigeria': ['NG', 'NGA', 'Nigeria', 'Federal Republic of Nigeria'],
+      'Indonesia': ['ID', 'IDN', 'Indonesia', 'Republic of Indonesia'],
       'Malaysia': ['MY', 'MYS', 'Malaysia'],
-      'Philippines': ['PH', 'PHL', 'Philippines'],
-      'Vietnam': ['VN', 'VNM', 'Vietnam']
+      'Philippines': ['PH', 'PHL', 'Philippines', 'Republic of the Philippines'],
+      'Vietnam': ['VN', 'VNM', 'Vietnam', 'Socialist Republic of Vietnam']
     };
 
     // Create a comprehensive set of visited country identifiers
     const visitedCountryIdentifiers = new Set<string>();
     
+    console.log('🌍 Processing travel data:', sampleTravelData.cities);
+    
     sampleTravelData.cities.forEach(city => {
       const countryName = city.country;
+      console.log(`📍 Processing city: ${city.city}, ${countryName}`);
+      
       const mappings = countryMapping[countryName];
       
       if (mappings) {
@@ -213,13 +217,16 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
         mappings.forEach(identifier => {
           visitedCountryIdentifiers.add(identifier.toLowerCase());
         });
+        console.log(`✅ Added mappings for ${countryName}:`, mappings);
+      } else {
+        console.log(`⚠️ No mapping found for ${countryName}`);
       }
       
       // Also add the exact country name
       visitedCountryIdentifiers.add(countryName.toLowerCase());
     });
 
-    console.log('Visited country identifiers:', Array.from(visitedCountryIdentifiers));
+    console.log('🎯 Final visited country identifiers:', Array.from(visitedCountryIdentifiers));
 
     // Enhanced function to check if a country is visited
     const isCountryVisited = (countryFeature: any): boolean => {
@@ -241,27 +248,30 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
         props.GEOUNIT,
         props.NAME_SORT,
         props.FORMAL_EN,
-        props.FORMAL_FR
-      ].filter(Boolean).map(id => id.toLowerCase());
+        props.FORMAL_FR,
+        props.SUBUNIT,
+        props.SU_A3
+      ].filter(Boolean).map(id => String(id).toLowerCase());
       
       // Check if any identifier matches our visited countries
       const isVisited = possibleIdentifiers.some(identifier => 
         visitedCountryIdentifiers.has(identifier)
       );
       
-      // Debug logging for Argentina specifically
-      if (possibleIdentifiers.some(id => id.includes('arg') || id.includes('argentina'))) {
-        console.log('Argentina country feature:', {
+      // Debug logging for Australia specifically
+      if (possibleIdentifiers.some(id => id.includes('aus') || id.includes('australia'))) {
+        console.log('🇦🇺 Australia country feature found:', {
           identifiers: possibleIdentifiers,
           isVisited,
-          visitedSet: Array.from(visitedCountryIdentifiers)
+          visitedSet: Array.from(visitedCountryIdentifiers),
+          matchingIdentifiers: possibleIdentifiers.filter(id => visitedCountryIdentifiers.has(id))
         });
       }
       
       return isVisited;
     };
 
-    // Draw countries
+    // Draw countries with proper coloring
     mapGroup.selectAll(".country")
       .data(worldData.features)
       .enter()
@@ -278,9 +288,11 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
       .on("mouseover", function(event, d: any) {
         const isVisited = isCountryVisited(d);
         
+        // Change color on hover
         d3.select(this)
           .attr("fill", isVisited ? theme.colors.accent : '#e5e7eb');
         
+        // Show tooltip
         setShowTooltip({
           x: event.pageX,
           y: event.pageY,
@@ -293,6 +305,7 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
       .on("mouseout", function(event, d: any) {
         const isVisited = isCountryVisited(d);
         
+        // Reset color
         d3.select(this)
           .attr("fill", isVisited ? theme.colors.primary : '#f3f4f6');
         
