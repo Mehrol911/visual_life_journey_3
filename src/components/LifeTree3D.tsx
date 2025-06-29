@@ -77,9 +77,9 @@ export const LifeTree3D: React.FC<LifeTree3DProps> = ({ lifeStats, theme }) => {
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
-    // Camera setup
+    // Camera setup - Start at eye level looking at the tree
     const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
-    camera.position.set(25, 15, 25);
+    camera.position.set(20, 8, 20); // Eye level view
     cameraRef.current = camera;
 
     // Renderer setup with enhanced quality
@@ -530,11 +530,17 @@ export const LifeTree3D: React.FC<LifeTree3DProps> = ({ lifeStats, theme }) => {
     let isMouseDown = false;
     let mouseX = 0;
     let mouseY = 0;
-    let targetX = 0;
-    let targetY = 0;
-    let phi = Math.PI / 4;
-    let theta = Math.PI / 4;
-    let radius = 35;
+    
+    // Spherical coordinates for complete 360° freedom
+    let spherical = {
+      radius: 30,
+      phi: Math.PI / 3,    // Vertical angle (0 = top, PI = bottom)
+      theta: Math.PI / 4   // Horizontal angle
+    };
+    
+    const target = new THREE.Vector3(0, 8, 0); // Look at tree center
+    const minRadius = 5;
+    const maxRadius = 100;
 
     const onMouseDown = (event: MouseEvent) => {
       isMouseDown = true;
@@ -548,11 +554,17 @@ export const LifeTree3D: React.FC<LifeTree3DProps> = ({ lifeStats, theme }) => {
       const deltaX = event.clientX - mouseX;
       const deltaY = event.clientY - mouseY;
 
-      targetX += deltaX * 0.01;
-      targetY += deltaY * 0.01;
+      // Update spherical coordinates for complete freedom
+      spherical.theta -= deltaX * 0.01; // Horizontal rotation
+      spherical.phi += deltaY * 0.01;   // Vertical rotation
+
+      // Allow full vertical rotation (can go above and below)
+      spherical.phi = Math.max(0.01, Math.min(Math.PI - 0.01, spherical.phi));
 
       mouseX = event.clientX;
       mouseY = event.clientY;
+
+      updateCameraPosition();
     };
 
     const onMouseUp = () => {
@@ -560,28 +572,40 @@ export const LifeTree3D: React.FC<LifeTree3DProps> = ({ lifeStats, theme }) => {
     };
 
     const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
       const scale = event.deltaY > 0 ? 1.1 : 0.9;
-      radius = Math.max(10, Math.min(100, radius * scale));
+      spherical.radius = Math.max(minRadius, Math.min(maxRadius, spherical.radius * scale));
+      updateCameraPosition();
+    };
+
+    const updateCameraPosition = () => {
+      // Convert spherical coordinates to Cartesian
+      const x = spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta);
+      const y = spherical.radius * Math.cos(spherical.phi);
+      const z = spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta);
+
+      camera.position.set(x + target.x, y + target.y, z + target.z);
+      camera.lookAt(target);
     };
 
     domElement.addEventListener('mousedown', onMouseDown);
     domElement.addEventListener('mousemove', onMouseMove);
     domElement.addEventListener('mouseup', onMouseUp);
-    domElement.addEventListener('wheel', onWheel);
+    domElement.addEventListener('wheel', onWheel, { passive: false });
 
-    // Store update function
-    controlsRef.current = () => {
-      phi += (targetY - phi) * 0.05;
-      theta += (targetX - theta) * 0.05;
-
-      phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi));
-
-      camera.position.x = radius * Math.sin(phi) * Math.cos(theta);
-      camera.position.y = radius * Math.cos(phi) + 10;
-      camera.position.z = radius * Math.sin(phi) * Math.sin(theta);
-
-      camera.lookAt(0, 10, 0);
+    // Store update function and initial position
+    controlsRef.current = {
+      updateCameraPosition,
+      reset: () => {
+        spherical.radius = 30;
+        spherical.phi = Math.PI / 3;
+        spherical.theta = Math.PI / 4;
+        updateCameraPosition();
+      }
     };
+
+    // Set initial camera position
+    updateCameraPosition();
   };
 
   const animate = () => {
@@ -590,11 +614,6 @@ export const LifeTree3D: React.FC<LifeTree3DProps> = ({ lifeStats, theme }) => {
     animationRef.current = requestAnimationFrame(animate);
 
     windTimeRef.current += 0.01;
-
-    // Update camera controls
-    if (controlsRef.current) {
-      controlsRef.current();
-    }
 
     // Wind effect on leaves
     if (treeGroupRef.current && treeParams.windStrength > 0) {
@@ -610,10 +629,8 @@ export const LifeTree3D: React.FC<LifeTree3DProps> = ({ lifeStats, theme }) => {
   };
 
   const resetCamera = () => {
-    if (cameraRef.current && controlsRef.current) {
-      // Reset camera position
-      cameraRef.current.position.set(25, 15, 25);
-      cameraRef.current.lookAt(0, 10, 0);
+    if (controlsRef.current && controlsRef.current.reset) {
+      controlsRef.current.reset();
     }
   };
 
@@ -945,7 +962,7 @@ export const LifeTree3D: React.FC<LifeTree3DProps> = ({ lifeStats, theme }) => {
         )}
       </AnimatePresence>
 
-      {/* Instructions */}
+      {/* Enhanced Instructions */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -963,7 +980,10 @@ export const LifeTree3D: React.FC<LifeTree3DProps> = ({ lifeStats, theme }) => {
             <p className="font-semibold mb-1">Your 3D Life Tree</p>
             <p className="text-gray-300 text-xs">🌿 Green leaves = Days remaining</p>
             <p className="text-gray-300 text-xs">🍂 Brown leaves = Days lived</p>
-            <p className="text-gray-300 text-xs">Drag to rotate • Scroll to zoom</p>
+            <p className="text-gray-300 text-xs">🎮 <strong>Full 360° Control:</strong></p>
+            <p className="text-gray-300 text-xs">• Drag to rotate around tree</p>
+            <p className="text-gray-300 text-xs">• Scroll to zoom in/out</p>
+            <p className="text-gray-300 text-xs">• View from any angle!</p>
           </div>
         </div>
       </motion.div>
