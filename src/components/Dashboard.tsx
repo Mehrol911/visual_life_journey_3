@@ -7,6 +7,7 @@ import { MyLibrary } from './MyLibrary';
 import { Workouts } from './Workouts';
 import { Relatives } from './Relatives';
 import { ProfileSettings } from './ProfileSettings';
+import { FallingLeafAnimation } from './FallingLeafAnimation';
 import { User, LifeStats } from '../types';
 import { calculateLifeStats } from '../utils/lifeCalculations';
 import { 
@@ -24,7 +25,8 @@ import {
   Award,
   Dumbbell,
   Users,
-  User as UserIcon
+  User as UserIcon,
+  Leaf
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -33,7 +35,7 @@ interface DashboardProps {
   onLogout: () => void;
 }
 
-type ActiveView = 'tree' | 'reflection' | 'library' | 'heroes' | 'workouts' | 'relatives' | 'travel' | 'timeline' | 'analytics' | 'profile';
+type ActiveView = 'tree' | 'reflection' | 'library' | 'heroes' | 'workouts' | 'relatives' | 'travel' | 'timeline' | 'analytics' | 'profile' | 'falling-leaves';
 
 export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, lifeStats: initialLifeStats, onLogout }) => {
   const [activeView, setActiveView] = useState<ActiveView>('tree');
@@ -49,6 +51,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, lifeSta
 
   const navigationItems = [
     { id: 'tree', label: 'Life Tree', icon: Home, description: 'Visualize your journey' },
+    { id: 'falling-leaves', label: 'Falling Leaves', icon: Leaf, description: 'Days of your life' },
     { id: 'reflection', label: 'Daily Reflection', icon: BookOpen, description: 'Today\'s thoughts' },
     { id: 'library', label: 'My Library', icon: Library, description: 'Books & Heroes' },
     { id: 'workouts', label: 'Workouts', icon: Dumbbell, description: 'Fitness journey' },
@@ -63,6 +66,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, lifeSta
     switch (activeView) {
       case 'tree':
         return <LifeTree3D lifeStats={lifeStats} theme={user.profession.theme} />;
+      case 'falling-leaves':
+        return <FallingLeafAnimation lifeStats={lifeStats} theme={user.profession.theme} userBirthDate={user.birth_date} />;
       case 'reflection':
         return <DailyReflection theme={user.profession.theme} userBirthDate={user.birth_date} />;
       case 'library':
@@ -107,7 +112,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, lifeSta
                 This amazing feature is coming soon! 
               </p>
               <p className="text-gray-500">
-                For now, explore your Life Tree, Daily Reflections, My Library, Workouts, Relatives, and Profile to start your journey.
+                For now, explore your Life Tree, Falling Leaves, Daily Reflections, My Library, Workouts, Relatives, and Profile to start your journey.
               </p>
             </div>
           </div>
