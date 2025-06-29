@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Onboarding } from './components/Onboarding';
+import { LoginForm } from './components/LoginForm';
 import { Dashboard } from './components/Dashboard';
 import { ProfessionTheme, User } from './types';
 import { calculateLifeStats } from './utils/lifeCalculations';
@@ -14,25 +15,39 @@ interface OnboardingData {
   password: string;
 }
 
+type AppView = 'onboarding' | 'login' | 'dashboard';
+
 function App() {
   const { user, loading, logout } = useAuth();
-  const [isOnboarding, setIsOnboarding] = useState(false);
+  const [currentView, setCurrentView] = useState<AppView>('onboarding');
 
-  // Determine if we should show onboarding
+  // Determine view based on auth state
   useEffect(() => {
     if (!loading) {
-      setIsOnboarding(!user);
+      if (user) {
+        setCurrentView('dashboard');
+      } else {
+        setCurrentView('onboarding');
+      }
     }
   }, [user, loading]);
 
   const handleOnboardingComplete = (data: OnboardingData) => {
     // The user will be automatically set by the auth hook after successful registration
-    setIsOnboarding(false);
+    setCurrentView('dashboard');
+  };
+
+  const handleSwitchToLogin = () => {
+    setCurrentView('login');
+  };
+
+  const handleSwitchToRegister = () => {
+    setCurrentView('onboarding');
   };
 
   const handleLogout = async () => {
     await logout();
-    setIsOnboarding(true);
+    setCurrentView('onboarding');
   };
 
   // Show loading spinner while checking auth state
@@ -56,7 +71,7 @@ function App() {
   return (
     <div className="min-h-screen">
       <AnimatePresence mode="wait">
-        {isOnboarding ? (
+        {currentView === 'onboarding' && (
           <motion.div
             key="onboarding"
             initial={{ opacity: 0 }}
@@ -66,22 +81,34 @@ function App() {
           >
             <Onboarding onComplete={handleOnboardingComplete} />
           </motion.div>
-        ) : (
-          user && lifeStats && (
-            <motion.div
-              key="dashboard"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <Dashboard 
-                user={user} 
-                lifeStats={lifeStats}
-                onLogout={handleLogout}
-              />
-            </motion.div>
-          )
+        )}
+        
+        {currentView === 'login' && (
+          <motion.div
+            key="login"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <LoginForm onSwitchToRegister={handleSwitchToRegister} />
+          </motion.div>
+        )}
+        
+        {currentView === 'dashboard' && user && lifeStats && (
+          <motion.div
+            key="dashboard"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <Dashboard 
+              user={user} 
+              lifeStats={lifeStats}
+              onLogout={handleLogout}
+            />
+          </motion.div>
         )}
       </AnimatePresence>
 
