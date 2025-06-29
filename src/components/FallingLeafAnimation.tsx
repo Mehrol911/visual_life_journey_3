@@ -378,7 +378,7 @@ export const FallingLeafAnimation: React.FC<FallingLeafAnimationProps> = ({
                   type="range"
                   min="0.1"
                   max="10"
-                  step="0.1"
+                  step="100.1"
                   value={animationSpeed}
                   onChange={(e) => setAnimationSpeed(parseFloat(e.target.value))}
                   className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
