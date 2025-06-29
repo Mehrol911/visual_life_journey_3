@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ProfessionTheme } from '../types';
 import { 
@@ -15,7 +15,8 @@ import {
   Filter,
   Search,
   Plane,
-  Camera
+  Camera,
+  ArrowLeft
 } from 'lucide-react';
 import * as d3 from 'd3';
 import { feature } from 'topojson-client';
@@ -54,6 +55,7 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
   const [worldData, setWorldData] = useState<any>(null);
   const [zoom, setZoom] = useState(1);
   const [showTooltip, setShowTooltip] = useState<any>(null);
+  const [mapInitialized, setMapInitialized] = useState(false);
 
   // Sample travel data for demonstration
   const sampleTravelData: TravelData = travelData || {
@@ -123,9 +125,9 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
     loadWorldData();
   }, []);
 
-  // Initialize map
-  useEffect(() => {
-    if (!worldData || !svgRef.current || !containerRef.current) return;
+  // Initialize map function
+  const initializeMap = useCallback(() => {
+    if (!worldData || !svgRef.current || !containerRef.current || mapInitialized) return;
 
     const container = containerRef.current;
     const svg = d3.select(svgRef.current);
@@ -161,6 +163,49 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
     // Create main group for map elements
     const mapGroup = svg.append("g").attr("class", "map-group");
 
+    // Enhanced country code mapping for better matching
+    const countryCodeMapping: { [key: string]: string } = {
+      'United States': 'US',
+      'United Kingdom': 'GB', 
+      'France': 'FR',
+      'Germany': 'DE',
+      'Italy': 'IT',
+      'Spain': 'ES',
+      'Japan': 'JP',
+      'China': 'CN',
+      'India': 'IN',
+      'Australia': 'AU',
+      'Brazil': 'BR',
+      'Canada': 'CA',
+      'Russia': 'RU',
+      'South Korea': 'KR',
+      'Mexico': 'MX',
+      'Turkey': 'TR',
+      'Thailand': 'TH',
+      'United Arab Emirates': 'AE',
+      'Singapore': 'SG',
+      'Egypt': 'EG',
+      'South Africa': 'ZA',
+      'Argentina': 'AR',
+      'Chile': 'CL',
+      'Peru': 'PE',
+      'Colombia': 'CO',
+      'Uzbekistan': 'UZ',
+      'Kazakhstan': 'KZ',
+      'Morocco': 'MA',
+      'Kenya': 'KE',
+      'Nigeria': 'NG',
+      'Indonesia': 'ID',
+      'Malaysia': 'MY',
+      'Philippines': 'PH',
+      'Vietnam': 'VN'
+    };
+
+    // Get visited country codes from cities
+    const visitedCountryCodes = new Set(
+      sampleTravelData.cities.map(city => countryCodeMapping[city.country]).filter(Boolean)
+    );
+
     // Draw countries
     mapGroup.selectAll(".country")
       .data(worldData.features)
@@ -169,16 +214,17 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
       .attr("class", "country")
       .attr("d", path)
       .attr("fill", (d: any) => {
-        const countryCode = d.properties.ISO_A2;
-        return sampleTravelData.countries.includes(countryCode) 
-          ? theme.colors.primary 
-          : '#f3f4f6';
+        const countryCode = d.properties.ISO_A2 || d.properties.ISO_A3 || d.properties.ADM0_A3;
+        const isVisited = visitedCountryCodes.has(countryCode);
+        return isVisited ? theme.colors.primary : '#f3f4f6';
       })
       .attr("stroke", "#e5e7eb")
       .attr("stroke-width", 0.5)
       .style("cursor", "pointer")
       .on("mouseover", function(event, d: any) {
-        const isVisited = sampleTravelData.countries.includes(d.properties.ISO_A2);
+        const countryCode = d.properties.ISO_A2 || d.properties.ISO_A3 || d.properties.ADM0_A3;
+        const isVisited = visitedCountryCodes.has(countryCode);
+        
         d3.select(this)
           .attr("fill", isVisited ? theme.colors.accent : '#e5e7eb');
         
@@ -186,14 +232,15 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
           x: event.pageX,
           y: event.pageY,
           content: {
-            name: d.properties.NAME,
+            name: d.properties.NAME || d.properties.NAME_EN,
             visited: isVisited
           }
         });
       })
       .on("mouseout", function(event, d: any) {
-        const countryCode = d.properties.ISO_A2;
-        const isVisited = sampleTravelData.countries.includes(countryCode);
+        const countryCode = d.properties.ISO_A2 || d.properties.ISO_A3 || d.properties.ADM0_A3;
+        const isVisited = visitedCountryCodes.has(countryCode);
+        
         d3.select(this)
           .attr("fill", isVisited ? theme.colors.primary : '#f3f4f6');
         
@@ -255,29 +302,43 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
       .style("opacity", 0)
       .style("pointer-events", "none");
 
-    // Show/hide labels based on zoom level
-    const updateLabels = () => {
-      mapGroup.selectAll(".city-label")
+    setMapInitialized(true);
+  }, [worldData, theme, mapInitialized, sampleTravelData]);
+
+  // Initialize map when data is ready and view is map
+  useEffect(() => {
+    if (viewMode === 'map' && worldData && !isLoading) {
+      // Reset map initialization when switching back to map view
+      setMapInitialized(false);
+      setTimeout(() => {
+        initializeMap();
+      }, 100);
+    }
+  }, [viewMode, worldData, isLoading, initializeMap]);
+
+  // Update labels based on zoom level
+  useEffect(() => {
+    if (mapInitialized && svgRef.current) {
+      const svg = d3.select(svgRef.current);
+      svg.selectAll(".city-label")
         .style("opacity", zoom > 2 ? 1 : 0);
-    };
-
-    updateLabels();
-
-  }, [worldData, theme, zoom]);
+    }
+  }, [zoom, mapInitialized]);
 
   // Handle window resize
   useEffect(() => {
     const handleResize = () => {
-      if (worldData) {
-        // Trigger re-render on resize
-        const event = new Event('resize');
-        window.dispatchEvent(event);
+      if (worldData && viewMode === 'map') {
+        setMapInitialized(false);
+        setTimeout(() => {
+          initializeMap();
+        }, 100);
       }
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [worldData]);
+  }, [worldData, viewMode, initializeMap]);
 
   const resetZoom = () => {
     if (svgRef.current) {
@@ -288,6 +349,7 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
           d3.zoom().transform as any,
           d3.zoomIdentity
         );
+      setZoom(1);
     }
   };
 
@@ -313,6 +375,20 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
         className="flex flex-wrap items-center justify-between gap-4"
       >
         <div className="flex items-center space-x-4">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="flex items-center px-4 py-2 rounded-xl border-2 transition-all duration-300 hover:shadow-md"
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.9)',
+                borderColor: theme.colors.primary + '20'
+              }}
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </button>
+          )}
+          
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -423,7 +499,7 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
              }}>
           <div className="text-center">
             <div className="text-2xl font-bold" style={{ color: theme.colors.primary }}>
-              {sampleTravelData.countries.length}
+              {new Set(sampleTravelData.cities.map(city => city.country)).size}
             </div>
             <div className="text-xs text-gray-600">Countries</div>
           </div>
@@ -506,81 +582,105 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
         <div className="w-24" /> {/* Spacer for centering */}
       </motion.div>
 
-      {/* Timeline */}
+      {/* Timeline with Scrollbar */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2 }}
-        className="relative"
+        className="relative max-h-[70vh] overflow-y-auto pr-4"
+        style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: `${theme.colors.primary}40 transparent`
+        }}
       >
-        {/* Timeline line */}
-        <div 
-          className="absolute left-8 top-0 bottom-0 w-0.5"
-          style={{ backgroundColor: theme.colors.primary + '40' }}
-        />
+        {/* Custom scrollbar styles */}
+        <style jsx>{`
+          .timeline-container::-webkit-scrollbar {
+            width: 8px;
+          }
+          .timeline-container::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+            border-radius: 4px;
+          }
+          .timeline-container::-webkit-scrollbar-thumb {
+            background: ${theme.colors.primary}60;
+            border-radius: 4px;
+          }
+          .timeline-container::-webkit-scrollbar-thumb:hover {
+            background: ${theme.colors.primary}80;
+          }
+        `}</style>
+        
+        <div className="timeline-container">
+          {/* Timeline line */}
+          <div 
+            className="absolute left-8 top-0 bottom-0 w-0.5"
+            style={{ backgroundColor: theme.colors.primary + '40' }}
+          />
 
-        <div className="space-y-8">
-          {sortedCities.map((city, index) => (
-            <motion.div
-              key={`${city.city}-${city.date}`}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="relative flex items-start space-x-6"
-            >
-              {/* Timeline dot */}
-              <div 
-                className="w-4 h-4 rounded-full border-4 border-white shadow-lg flex-shrink-0 mt-2"
-                style={{ backgroundColor: theme.colors.primary }}
-              />
-
-              {/* Content card */}
-              <div 
-                className="flex-1 p-6 rounded-2xl border shadow-lg"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
-                  borderColor: theme.colors.primary + '20'
-                }}
+          <div className="space-y-8 pb-8">
+            {sortedCities.map((city, index) => (
+              <motion.div
+                key={`${city.city}-${city.date}`}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="relative flex items-start space-x-6"
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-800 flex items-center">
-                      <MapPin className="w-5 h-5 mr-2" style={{ color: theme.colors.primary }} />
-                      {city.city}
-                    </h3>
-                    <p className="text-gray-600">{city.country}</p>
-                  </div>
-                  <div className="text-right">
-                    <div className="flex items-center text-sm text-gray-500">
-                      <Calendar className="w-4 h-4 mr-1" />
-                      {city.date}
+                {/* Timeline dot */}
+                <div 
+                  className="w-4 h-4 rounded-full border-4 border-white shadow-lg flex-shrink-0 mt-2"
+                  style={{ backgroundColor: theme.colors.primary }}
+                />
+
+                {/* Content card */}
+                <div 
+                  className="flex-1 p-6 rounded-2xl border shadow-lg"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
+                    borderColor: theme.colors.primary + '20'
+                  }}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-800 flex items-center">
+                        <MapPin className="w-5 h-5 mr-2" style={{ color: theme.colors.primary }} />
+                        {city.city}
+                      </h3>
+                      <p className="text-gray-600">{city.country}</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-center text-sm text-gray-500">
+                        <Calendar className="w-4 h-4 mr-1" />
+                        {city.date}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {city.description && (
-                  <p className="text-gray-700 leading-relaxed">{city.description}</p>
-                )}
+                  {city.description && (
+                    <p className="text-gray-700 leading-relaxed">{city.description}</p>
+                  )}
 
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="text-sm text-gray-500">
-                    Visit #{index + 1}
+                  <div className="mt-4 flex items-center justify-between">
+                    <div className="text-sm text-gray-500">
+                      Visit #{index + 1}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedCity(city);
+                        setViewMode('map');
+                      }}
+                      className="flex items-center text-sm font-semibold transition-colors duration-200"
+                      style={{ color: theme.colors.primary }}
+                    >
+                      <Navigation className="w-4 h-4 mr-1" />
+                      View on Map
+                    </button>
                   </div>
-                  <button
-                    onClick={() => {
-                      setSelectedCity(city);
-                      setViewMode('map');
-                    }}
-                    className="flex items-center text-sm font-semibold transition-colors duration-200"
-                    style={{ color: theme.colors.primary }}
-                  >
-                    <Navigation className="w-4 h-4 mr-1" />
-                    View on Map
-                  </button>
                 </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            ))}
+          </div>
         </div>
       </motion.div>
     </div>
