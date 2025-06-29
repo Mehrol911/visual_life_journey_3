@@ -62,7 +62,7 @@ export const LifeTree3D: React.FC<LifeTree3DProps> = ({ lifeStats, theme }) => {
     leafSize: 0.4,
     canopySpread: 1.0,
     windStrength: 0.3,
-    sunIntensity: 0.8,
+    sunIntensity: 1.1,
     timeOfDay: 15
   });
 
