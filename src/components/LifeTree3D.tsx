@@ -57,7 +57,7 @@ export const LifeTree3D: React.FC<LifeTree3DProps> = ({ lifeStats, theme }) => {
     trunkRadius: 1.2,
     branchLevels: 5,
     branchDensity: 0.8,
-    branchAngle: 270,
+    branchAngle: 45,
     leafDensity: 1.0,
     leafSize: 0.4,
     canopySpread: 1.0,
