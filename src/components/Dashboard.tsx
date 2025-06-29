@@ -181,7 +181,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, lifeSta
         <motion.div
           initial={{ x: -100, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          className="w-80 p-6 backdrop-blur-lg border-r border-white/10 relative z-10"
+          className="w-80 p-6 backdrop-blur-lg border-r border-white/10 relative z-10 flex flex-col"
           style={{
             background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
             borderRight: `1px solid ${user.profession.theme.colors.primary}20`,
@@ -233,8 +233,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, lifeSta
             </motion.div>
           </div>
 
-          {/* Navigation */}
-          <nav className="space-y-2 mb-8">
+          {/* Navigation - Scrollable */}
+          <nav className="flex-1 overflow-y-auto space-y-2 mb-8">
             {navigationItems.map((item, index) => {
               const Icon = item.icon;
               const isActive = activeView === item.id;
@@ -359,15 +359,37 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, lifeSta
         </motion.div>
       )}
 
-      {/* Main Content Area */}
-      <div className="flex-1 relative z-10">
+      {/* Main Content Area - Scrollable */}
+      <div className="flex-1 relative z-10 overflow-hidden">
         <motion.div
           key={activeView}
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4 }}
-          className="h-full"
+          className="h-full overflow-y-auto"
+          style={{
+            scrollbarWidth: 'thin',
+            scrollbarColor: `${user.profession.theme.colors.primary}40 transparent`
+          }}
         >
+          {/* Custom scrollbar styles */}
+          <style jsx>{`
+            .h-full::-webkit-scrollbar {
+              width: 8px;
+            }
+            .h-full::-webkit-scrollbar-track {
+              background: rgba(0,0,0,0.1);
+              border-radius: 4px;
+            }
+            .h-full::-webkit-scrollbar-thumb {
+              background: ${user.profession.theme.colors.primary}60;
+              border-radius: 4px;
+            }
+            .h-full::-webkit-scrollbar-thumb:hover {
+              background: ${user.profession.theme.colors.primary}80;
+            }
+          `}</style>
+          
           {renderContent()}
         </motion.div>
       </div>
