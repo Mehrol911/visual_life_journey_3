@@ -101,9 +101,16 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
         date: "03/2015",
         coordinates: [151.2093, -33.8688],
         description: "Opera House and harbor bridge views"
+      },
+      {
+        city: "Córdoba",
+        country: "Argentina",
+        date: "04/2018",
+        coordinates: [-64.1888, -31.4201],
+        description: "Beautiful colonial architecture and vibrant culture"
       }
     ],
-    countries: ["US", "GB", "AU", "JP", "FR"]
+    countries: ["US", "GB", "AU", "JP", "FR", "AR"]
   };
 
   // Load world map data
@@ -163,42 +170,112 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
     // Create main group for map elements
     const mapGroup = svg.append("g").attr("class", "map-group");
 
-    // COMPREHENSIVE country mapping - includes all possible variations
+    // COMPREHENSIVE country mapping - includes all possible variations and common names
     const countryMapping: { [key: string]: string[] } = {
-      'United States': ['US', 'USA', 'United States', 'United States of America', 'America', 'U.S.A.', 'U.S.'],
-      'United Kingdom': ['GB', 'UK', 'GBR', 'United Kingdom', 'Britain', 'Great Britain', 'England', 'U.K.'], 
-      'France': ['FR', 'FRA', 'France', 'French Republic'],
-      'Germany': ['DE', 'DEU', 'Germany', 'Deutschland', 'Federal Republic of Germany'],
-      'Italy': ['IT', 'ITA', 'Italy', 'Italia', 'Italian Republic'],
-      'Spain': ['ES', 'ESP', 'Spain', 'España', 'Kingdom of Spain'],
-      'Japan': ['JP', 'JPN', 'Japan', 'Nippon', 'Nihon'],
-      'China': ['CN', 'CHN', 'China', 'People\'s Republic of China', 'PRC'],
-      'India': ['IN', 'IND', 'India', 'Republic of India', 'Bharat'],
-      'Australia': ['AU', 'AUS', 'Australia', 'Commonwealth of Australia', 'Oceania'],
-      'Brazil': ['BR', 'BRA', 'Brazil', 'Brasil', 'Federative Republic of Brazil'],
-      'Canada': ['CA', 'CAN', 'Canada'],
-      'Russia': ['RU', 'RUS', 'Russia', 'Russian Federation', 'USSR'],
-      'South Korea': ['KR', 'KOR', 'Korea', 'South Korea', 'Republic of Korea', 'S. Korea'],
-      'Mexico': ['MX', 'MEX', 'Mexico', 'México', 'United Mexican States'],
-      'Turkey': ['TR', 'TUR', 'Turkey', 'Türkiye', 'Republic of Turkey'],
-      'Thailand': ['TH', 'THA', 'Thailand', 'Kingdom of Thailand'],
-      'United Arab Emirates': ['AE', 'ARE', 'UAE', 'United Arab Emirates', 'U.A.E.'],
-      'Singapore': ['SG', 'SGP', 'Singapore', 'Republic of Singapore'],
-      'Egypt': ['EG', 'EGY', 'Egypt', 'Arab Republic of Egypt'],
-      'South Africa': ['ZA', 'ZAF', 'South Africa', 'Republic of South Africa', 'RSA'],
-      'Argentina': ['AR', 'ARG', 'Argentina', 'Argentine Republic'],
-      'Chile': ['CL', 'CHL', 'Chile', 'Republic of Chile'],
-      'Peru': ['PE', 'PER', 'Peru', 'Republic of Peru'],
-      'Colombia': ['CO', 'COL', 'Colombia', 'Republic of Colombia'],
-      'Uzbekistan': ['UZ', 'UZB', 'Uzbekistan', 'Republic of Uzbekistan'],
-      'Kazakhstan': ['KZ', 'KAZ', 'Kazakhstan', 'Republic of Kazakhstan'],
-      'Morocco': ['MA', 'MAR', 'Morocco', 'Kingdom of Morocco'],
-      'Kenya': ['KE', 'KEN', 'Kenya', 'Republic of Kenya'],
-      'Nigeria': ['NG', 'NGA', 'Nigeria', 'Federal Republic of Nigeria'],
-      'Indonesia': ['ID', 'IDN', 'Indonesia', 'Republic of Indonesia'],
-      'Malaysia': ['MY', 'MYS', 'Malaysia'],
-      'Philippines': ['PH', 'PHL', 'Philippines', 'Republic of the Philippines'],
-      'Vietnam': ['VN', 'VNM', 'Vietnam', 'Socialist Republic of Vietnam']
+      'United States': [
+        'US', 'USA', 'United States', 'United States of America', 'America', 'U.S.A.', 'U.S.',
+        'United States of America', 'US1', 'USA1'
+      ],
+      'United Kingdom': [
+        'GB', 'UK', 'GBR', 'United Kingdom', 'Britain', 'Great Britain', 'England', 'U.K.',
+        'United Kingdom of Great Britain and Northern Ireland', 'GB1', 'GBR1'
+      ], 
+      'France': [
+        'FR', 'FRA', 'France', 'French Republic', 'République française', 'FR1', 'FRA1'
+      ],
+      'Germany': [
+        'DE', 'DEU', 'Germany', 'Deutschland', 'Federal Republic of Germany', 'DE1', 'DEU1'
+      ],
+      'Italy': [
+        'IT', 'ITA', 'Italy', 'Italia', 'Italian Republic', 'IT1', 'ITA1'
+      ],
+      'Spain': [
+        'ES', 'ESP', 'Spain', 'España', 'Kingdom of Spain', 'ES1', 'ESP1'
+      ],
+      'Japan': [
+        'JP', 'JPN', 'Japan', 'Nippon', 'Nihon', 'JP1', 'JPN1'
+      ],
+      'China': [
+        'CN', 'CHN', 'China', 'People\'s Republic of China', 'PRC', 'CN1', 'CHN1'
+      ],
+      'India': [
+        'IN', 'IND', 'India', 'Republic of India', 'Bharat', 'IN1', 'IND1'
+      ],
+      'Australia': [
+        'AU', 'AUS', 'Australia', 'Commonwealth of Australia', 'AU1', 'AUS1'
+      ],
+      'Brazil': [
+        'BR', 'BRA', 'Brazil', 'Brasil', 'Federative Republic of Brazil', 'BR1', 'BRA1'
+      ],
+      'Canada': [
+        'CA', 'CAN', 'Canada', 'CA1', 'CAN1'
+      ],
+      'Russia': [
+        'RU', 'RUS', 'Russia', 'Russian Federation', 'USSR', 'RU1', 'RUS1'
+      ],
+      'South Korea': [
+        'KR', 'KOR', 'Korea', 'South Korea', 'Republic of Korea', 'S. Korea', 'KR1', 'KOR1'
+      ],
+      'Mexico': [
+        'MX', 'MEX', 'Mexico', 'México', 'United Mexican States', 'MX1', 'MEX1'
+      ],
+      'Turkey': [
+        'TR', 'TUR', 'Turkey', 'Türkiye', 'Republic of Turkey', 'TR1', 'TUR1'
+      ],
+      'Thailand': [
+        'TH', 'THA', 'Thailand', 'Kingdom of Thailand', 'TH1', 'THA1'
+      ],
+      'United Arab Emirates': [
+        'AE', 'ARE', 'UAE', 'United Arab Emirates', 'U.A.E.', 'AE1', 'ARE1'
+      ],
+      'Singapore': [
+        'SG', 'SGP', 'Singapore', 'Republic of Singapore', 'SG1', 'SGP1'
+      ],
+      'Egypt': [
+        'EG', 'EGY', 'Egypt', 'Arab Republic of Egypt', 'EG1', 'EGY1'
+      ],
+      'South Africa': [
+        'ZA', 'ZAF', 'South Africa', 'Republic of South Africa', 'RSA', 'ZA1', 'ZAF1'
+      ],
+      'Argentina': [
+        'AR', 'ARG', 'Argentina', 'Argentine Republic', 'República Argentina', 'AR1', 'ARG1'
+      ],
+      'Chile': [
+        'CL', 'CHL', 'Chile', 'Republic of Chile', 'CL1', 'CHL1'
+      ],
+      'Peru': [
+        'PE', 'PER', 'Peru', 'Republic of Peru', 'PE1', 'PER1'
+      ],
+      'Colombia': [
+        'CO', 'COL', 'Colombia', 'Republic of Colombia', 'CO1', 'COL1'
+      ],
+      'Uzbekistan': [
+        'UZ', 'UZB', 'Uzbekistan', 'Republic of Uzbekistan', 'UZ1', 'UZB1'
+      ],
+      'Kazakhstan': [
+        'KZ', 'KAZ', 'Kazakhstan', 'Republic of Kazakhstan', 'KZ1', 'KAZ1'
+      ],
+      'Morocco': [
+        'MA', 'MAR', 'Morocco', 'Kingdom of Morocco', 'MA1', 'MAR1'
+      ],
+      'Kenya': [
+        'KE', 'KEN', 'Kenya', 'Republic of Kenya', 'KE1', 'KEN1'
+      ],
+      'Nigeria': [
+        'NG', 'NGA', 'Nigeria', 'Federal Republic of Nigeria', 'NG1', 'NGA1'
+      ],
+      'Indonesia': [
+        'ID', 'IDN', 'Indonesia', 'Republic of Indonesia', 'ID1', 'IDN1'
+      ],
+      'Malaysia': [
+        'MY', 'MYS', 'Malaysia', 'MY1', 'MYS1'
+      ],
+      'Philippines': [
+        'PH', 'PHL', 'Philippines', 'Republic of the Philippines', 'PH1', 'PHL1'
+      ],
+      'Vietnam': [
+        'VN', 'VNM', 'Vietnam', 'Socialist Republic of Vietnam', 'VN1', 'VNM1'
+      ]
     };
 
     // Create a comprehensive set of visited country identifiers
@@ -250,7 +327,13 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
         props.FORMAL_EN,
         props.FORMAL_FR,
         props.SUBUNIT,
-        props.SU_A3
+        props.SU_A3,
+        props.BRK_A3,
+        props.BRK_NAME,
+        props.BRK_GROUP,
+        props.ABBREV,
+        props.POSTAL,
+        props.NAME_CIAWF
       ].filter(Boolean).map(id => String(id).toLowerCase());
       
       // Check if any identifier matches our visited countries
@@ -258,9 +341,13 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
         visitedCountryIdentifiers.has(identifier)
       );
       
-      // Debug logging for Australia specifically
-      if (possibleIdentifiers.some(id => id.includes('aus') || id.includes('australia'))) {
-        console.log('🇦🇺 Australia country feature found:', {
+      // Special debug logging for Argentina
+      if (possibleIdentifiers.some(id => 
+        id.includes('arg') || 
+        id.includes('argentina') || 
+        id === 'ar'
+      )) {
+        console.log('🇦🇷 Argentina country feature found:', {
           identifiers: possibleIdentifiers,
           isVisited,
           visitedSet: Array.from(visitedCountryIdentifiers),
@@ -527,7 +614,7 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
           <svg ref={svgRef} className="w-full h-full" />
         )}
 
-        {/* Legend */}
+        {/* Enhanced Legend */}
         <div className="absolute bottom-4 left-4 p-4 rounded-2xl border shadow-lg"
              style={{
                background: 'rgba(255,255,255,0.95)',
@@ -556,7 +643,7 @@ export const InteractiveTravelMap: React.FC<InteractiveTravelMapProps> = ({
           </div>
         </div>
 
-        {/* Stats */}
+        {/* Enhanced Stats */}
         <div className="absolute top-4 right-4 p-4 rounded-2xl border shadow-lg"
              style={{
                background: 'rgba(255,255,255,0.95)',
