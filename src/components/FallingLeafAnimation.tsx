@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LifeStats, ProfessionTheme } from '../types';
-import { Calendar, Pause, Play, RotateCcw, Settings, Sparkles } from 'lucide-react';
+import { Calendar, Pause, Play, RotateCcw, Settings, Sparkles, Info } from 'lucide-react';
 
 interface FallingLeaf {
   id: string;
@@ -16,6 +16,16 @@ interface FallingLeaf {
   opacity: number;
   dayNumber: number;
   date: Date;
+  lifePhase: string;
+}
+
+interface LifePhase {
+  name: string;
+  color: string;
+  ageRange: string;
+  startAge: number;
+  endAge: number;
+  description: string;
 }
 
 interface FallingLeafAnimationProps {
@@ -39,6 +49,82 @@ export const FallingLeafAnimation: React.FC<FallingLeafAnimationProps> = ({
   const animationRef = useRef<number>();
   const lastDropTime = useRef(0);
 
+  // Define life phases based on actual age ranges
+  const lifePhases: LifePhase[] = [
+    {
+      name: 'Infancy',
+      color: '#98FB98', // Light green
+      ageRange: '0-2 years',
+      startAge: 0,
+      endAge: 2,
+      description: 'First steps and words'
+    },
+    {
+      name: 'Early Childhood',
+      color: '#90EE90', // Light green
+      ageRange: '3-5 years',
+      startAge: 3,
+      endAge: 5,
+      description: 'Learning and playing'
+    },
+    {
+      name: 'Childhood',
+      color: '#32CD32', // Lime green
+      ageRange: '6-12 years',
+      startAge: 6,
+      endAge: 12,
+      description: 'School and friendships'
+    },
+    {
+      name: 'Adolescence',
+      color: '#9ACD32', // Yellow green
+      ageRange: '13-17 years',
+      startAge: 13,
+      endAge: 17,
+      description: 'Growth and discovery'
+    },
+    {
+      name: 'Young Adult',
+      color: '#FFD700', // Gold
+      ageRange: '18-25 years',
+      startAge: 18,
+      endAge: 25,
+      description: 'Independence and exploration'
+    },
+    {
+      name: 'Adult',
+      color: '#FFA500', // Orange
+      ageRange: '26-40 years',
+      startAge: 26,
+      endAge: 40,
+      description: 'Career and relationships'
+    },
+    {
+      name: 'Middle Age',
+      color: '#FF8C00', // Dark orange
+      ageRange: '41-60 years',
+      startAge: 41,
+      endAge: 60,
+      description: 'Wisdom and leadership'
+    },
+    {
+      name: 'Senior',
+      color: '#CD853F', // Peru
+      ageRange: '61-75 years',
+      startAge: 61,
+      endAge: 75,
+      description: 'Experience and mentoring'
+    },
+    {
+      name: 'Elder',
+      color: '#8B4513', // Saddle brown
+      ageRange: '76+ years',
+      startAge: 76,
+      endAge: 120,
+      description: 'Legacy and reflection'
+    }
+  ];
+
   // Calculate exact days lived
   const calculateDaysLived = () => {
     const birthDate = new Date(userBirthDate);
@@ -48,28 +134,39 @@ export const FallingLeafAnimation: React.FC<FallingLeafAnimationProps> = ({
   };
 
   const totalDaysLived = calculateDaysLived();
+  const currentAge = lifeStats.current_age;
 
-  // Leaf colors representing different life phases
-  const getLeafColor = (dayNumber: number) => {
-    const totalDays = totalDaysLived;
-    const progress = dayNumber / totalDays;
-    
-    if (progress < 0.2) {
-      // Childhood - bright green
-      return '#32CD32';
-    } else if (progress < 0.4) {
-      // Youth - yellow-green
-      return '#9ACD32';
-    } else if (progress < 0.6) {
-      // Young adult - golden
-      return '#FFD700';
-    } else if (progress < 0.8) {
-      // Adult - orange
-      return '#FF8C00';
-    } else {
-      // Mature - deep red/brown
-      return '#CD853F';
-    }
+  // Get age-appropriate life phases (only phases the user has experienced or is currently in)
+  const getApplicableLifePhases = (): LifePhase[] => {
+    return lifePhases.filter(phase => phase.startAge <= currentAge);
+  };
+
+  const applicablePhases = getApplicableLifePhases();
+
+  // Get life phase for a specific age
+  const getLifePhaseForAge = (age: number): LifePhase => {
+    // Only return phases that are age-appropriate
+    const phase = applicablePhases.find(p => age >= p.startAge && age <= p.endAge);
+    return phase || applicablePhases[applicablePhases.length - 1]; // Default to current highest phase
+  };
+
+  // Get age from day number
+  const getAgeFromDay = (dayNumber: number): number => {
+    return Math.floor(dayNumber / 365.25);
+  };
+
+  // Get leaf color based on age-appropriate life phase
+  const getLeafColor = (dayNumber: number): string => {
+    const age = getAgeFromDay(dayNumber);
+    const phase = getLifePhaseForAge(age);
+    return phase.color;
+  };
+
+  // Get life phase name for a day
+  const getLifePhaseName = (dayNumber: number): string => {
+    const age = getAgeFromDay(dayNumber);
+    const phase = getLifePhaseForAge(age);
+    return phase.name;
   };
 
   // Get date for a specific day number
@@ -83,6 +180,8 @@ export const FallingLeafAnimation: React.FC<FallingLeafAnimationProps> = ({
   // Create a new falling leaf
   const createLeaf = (dayNumber: number): FallingLeaf => {
     const containerWidth = containerRef.current?.clientWidth || 800;
+    const age = getAgeFromDay(dayNumber);
+    const phase = getLifePhaseForAge(age);
     
     return {
       id: `leaf-${dayNumber}-${Date.now()}`,
@@ -90,13 +189,14 @@ export const FallingLeafAnimation: React.FC<FallingLeafAnimationProps> = ({
       y: -50,
       rotation: Math.random() * 360,
       scale: 0.8 + Math.random() * 0.4,
-      color: getLeafColor(dayNumber),
+      color: phase.color,
       fallSpeed: 1 + Math.random() * 2,
       swayAmplitude: 20 + Math.random() * 30,
       swayFrequency: 0.02 + Math.random() * 0.03,
       opacity: 0.8 + Math.random() * 0.2,
       dayNumber,
-      date: getDateForDay(dayNumber)
+      date: getDateForDay(dayNumber),
+      lifePhase: phase.name
     };
   };
 
@@ -108,7 +208,7 @@ export const FallingLeafAnimation: React.FC<FallingLeafAnimationProps> = ({
     }
 
     // Drop new leaf based on speed
-    const dropInterval = Math.max(50, 1000 / animationSpeed); // Minimum 50ms between drops
+    const dropInterval = Math.max(50, 1000 / animationSpeed);
     
     if (timestamp - lastDropTime.current > dropInterval && currentDay < totalDaysLived) {
       const newLeaf = createLeaf(currentDay + 1);
@@ -160,14 +260,9 @@ export const FallingLeafAnimation: React.FC<FallingLeafAnimationProps> = ({
     setIsPlaying(!isPlaying);
   };
 
-  // Get life phase name
-  const getLifePhase = (dayNumber: number) => {
-    const progress = dayNumber / totalDaysLived;
-    if (progress < 0.2) return 'Childhood';
-    if (progress < 0.4) return 'Youth';
-    if (progress < 0.6) return 'Young Adult';
-    if (progress < 0.8) return 'Adult';
-    return 'Mature';
+  // Get current life phase
+  const getCurrentLifePhase = (): LifePhase => {
+    return getLifePhaseForAge(currentAge);
   };
 
   return (
@@ -201,18 +296,35 @@ export const FallingLeafAnimation: React.FC<FallingLeafAnimationProps> = ({
               exit={{ opacity: 0, scale: 0 }}
               transition={{ duration: 0.3 }}
             >
-              {/* Leaf SVG */}
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              {/* Enhanced Leaf SVG with better design */}
+              <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                <defs>
+                  <radialGradient id={`leafGradient-${leaf.id}`} cx="0.3" cy="0.3" r="0.8">
+                    <stop offset="0%" stopColor={leaf.color} stopOpacity="1" />
+                    <stop offset="70%" stopColor={leaf.color} stopOpacity="0.9" />
+                    <stop offset="100%" stopColor={leaf.color} stopOpacity="0.7" />
+                  </radialGradient>
+                </defs>
                 <path
-                  d="M12 2C12 2 8 6 8 12C8 16 10 18 12 18C14 18 16 16 16 12C16 6 12 2 12 2Z"
-                  fill={leaf.color}
-                  stroke={leaf.color}
+                  d="M14 3C14 3 9 8 9 15C9 20 11.5 22 14 22C16.5 22 19 20 19 15C19 8 14 3 14 3Z"
+                  fill={`url(#leafGradient-${leaf.id})`}
+                  stroke="rgba(0,0,0,0.2)"
+                  strokeWidth="0.5"
+                />
+                <path
+                  d="M14 7L14 22"
+                  stroke="rgba(0,0,0,0.3)"
                   strokeWidth="1"
                 />
                 <path
-                  d="M12 6L12 18"
-                  stroke="rgba(0,0,0,0.3)"
-                  strokeWidth="1"
+                  d="M14 10L17 13"
+                  stroke="rgba(0,0,0,0.2)"
+                  strokeWidth="0.5"
+                />
+                <path
+                  d="M14 14L11 17"
+                  stroke="rgba(0,0,0,0.2)"
+                  strokeWidth="0.5"
                 />
               </svg>
             </motion.div>
@@ -220,7 +332,7 @@ export const FallingLeafAnimation: React.FC<FallingLeafAnimationProps> = ({
         </AnimatePresence>
       </div>
 
-      {/* Stats Display */}
+      {/* Enhanced Stats Display */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -236,7 +348,7 @@ export const FallingLeafAnimation: React.FC<FallingLeafAnimationProps> = ({
         </div>
         
         <div className="space-y-3">
-          <div className="flex justify-between items-center min-w-[250px]">
+          <div className="flex justify-between items-center min-w-[280px]">
             <span className="text-sm font-semibold text-gray-600">Days Lived:</span>
             <span className="text-xl font-bold" style={{ color: theme.colors.primary }}>
               {leafCount.toLocaleString()} / {totalDaysLived.toLocaleString()}
@@ -250,11 +362,19 @@ export const FallingLeafAnimation: React.FC<FallingLeafAnimationProps> = ({
             </span>
           </div>
           
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-semibold text-gray-600">Current Phase:</span>
+            <span className="text-sm font-bold px-3 py-1 rounded-full text-white" 
+                  style={{ backgroundColor: getCurrentLifePhase().color }}>
+              {getCurrentLifePhase().name}
+            </span>
+          </div>
+          
           {currentDay > 0 && (
             <div className="flex justify-between items-center">
-              <span className="text-sm font-semibold text-gray-600">Life Phase:</span>
+              <span className="text-sm font-semibold text-gray-600">Animation Phase:</span>
               <span className="text-sm font-bold" style={{ color: theme.colors.accent }}>
-                {getLifePhase(currentDay)}
+                {getLifePhaseName(currentDay)}
               </span>
             </div>
           )}
@@ -301,6 +421,10 @@ export const FallingLeafAnimation: React.FC<FallingLeafAnimationProps> = ({
                   month: 'short',
                   day: 'numeric'
                 })}
+              </div>
+              <div className="text-xs font-semibold mt-1" 
+                   style={{ color: getLeafColor(currentDay) }}>
+                Age {getAgeFromDay(currentDay)}
               </div>
             </div>
           </div>
@@ -396,7 +520,7 @@ export const FallingLeafAnimation: React.FC<FallingLeafAnimationProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Legend */}
+      {/* Age-Appropriate Legend */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -407,28 +531,30 @@ export const FallingLeafAnimation: React.FC<FallingLeafAnimationProps> = ({
           borderColor: theme.colors.primary + '20'
         }}
       >
-        <h4 className="text-sm font-bold text-gray-800 mb-3">Life Phases</h4>
+        <div className="flex items-center mb-3">
+          <Info className="w-4 h-4 mr-2" style={{ color: theme.colors.primary }} />
+          <h4 className="text-sm font-bold text-gray-800">Your Life Phases</h4>
+        </div>
         <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#32CD32' }}></div>
-            <span className="text-xs text-gray-600">Childhood (0-20%)</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#9ACD32' }}></div>
-            <span className="text-xs text-gray-600">Youth (20-40%)</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#FFD700' }}></div>
-            <span className="text-xs text-gray-600">Young Adult (40-60%)</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#FF8C00' }}></div>
-            <span className="text-xs text-gray-600">Adult (60-80%)</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#CD853F' }}></div>
-            <span className="text-xs text-gray-600">Mature (80-100%)</span>
-          </div>
+          {applicablePhases.map((phase, index) => (
+            <div key={phase.name} className="flex items-center space-x-2">
+              <div 
+                className="w-4 h-4 rounded-full border border-gray-300" 
+                style={{ backgroundColor: phase.color }}
+              ></div>
+              <span className="text-xs text-gray-600">
+                {phase.name} ({phase.ageRange})
+              </span>
+              {phase.startAge <= currentAge && currentAge <= phase.endAge && (
+                <span className="text-xs font-bold text-green-600">Current</span>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 pt-3 border-t border-gray-200">
+          <p className="text-xs text-gray-500">
+            Only showing phases you've experienced (age {currentAge})
+          </p>
         </div>
       </motion.div>
 
@@ -446,8 +572,11 @@ export const FallingLeafAnimation: React.FC<FallingLeafAnimationProps> = ({
                }}>
             <Sparkles className="w-16 h-16 mx-auto mb-4" style={{ color: theme.colors.primary }} />
             <h2 className="text-3xl font-bold text-gray-800 mb-4">Journey Complete!</h2>
-            <p className="text-lg text-gray-600 mb-6">
+            <p className="text-lg text-gray-600 mb-2">
               You've witnessed all {totalDaysLived.toLocaleString()} days of your life journey
+            </p>
+            <p className="text-md text-gray-500 mb-6">
+              From {applicablePhases[0]?.name} to {getCurrentLifePhase().name}
             </p>
             <motion.button
               whileHover={{ scale: 1.05 }}
