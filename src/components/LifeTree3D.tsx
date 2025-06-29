@@ -895,7 +895,7 @@ export const LifeTree3D: React.FC<LifeTree3DProps> = ({ lifeStats, theme }) => {
       </AnimatePresence>
 
       {/* Control Buttons */}
-      <div className="absolute bottom-6 right-6 z-10 flex gap-3">
+      <div className="absolute bottom-12 right-12 z-10 flex gap-3">
         <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
@@ -946,9 +946,9 @@ export const LifeTree3D: React.FC<LifeTree3DProps> = ({ lifeStats, theme }) => {
       <AnimatePresence>
         {showTooltip && (
           <motion.div
-            initial={{ opacity: 0, y: 110 }}
-            animate={{ opacity: 1, y: 110 }}
-            exit={{ opacity: 0, y: 110 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
             className="absolute bottom-20 right-6 z-20 px-3 py-2 rounded-lg backdrop-blur-lg border text-white text-sm"
             style={{ 
               background: 'rgba(0,0,0,0.8)',
