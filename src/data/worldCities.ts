@@ -299,17 +299,6 @@ export const WORLD_CITIES: Country[] = [
     ]
   },
   {
-    name: "Uzbekistan",
-    code: "UZ",
-    cities: [
-      { name: "Tashkent", country: "Uzbekistan", lat: 41.2995, lng: 69.2401 },
-      { name: "Samarkand", country: "Uzbekistan", lat: 39.6270, lng: 66.9750 },
-      { name: "Bukhara", country: "Uzbekistan", lat: 39.7747, lng: 64.4286 },
-      { name: "Khiva", country: "Uzbekistan", lat: 41.3775, lng: 60.3619 },
-      { name: "Nukus", country: "Uzbekistan", lat: 42.4731, lng: 59.6103 }
-    ]
-  },
-  {
     name: "Kazakhstan",
     code: "KZ",
     cities: [
