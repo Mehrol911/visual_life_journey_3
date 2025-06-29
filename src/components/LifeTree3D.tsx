@@ -947,8 +947,8 @@ export const LifeTree3D: React.FC<LifeTree3DProps> = ({ lifeStats, theme }) => {
         {showTooltip && (
           <motion.div
             initial={{ opacity: 0, y: 110 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 110 }}
+            exit={{ opacity: 0, y: 110 }}
             className="absolute bottom-20 right-6 z-20 px-3 py-2 rounded-lg backdrop-blur-lg border text-white text-sm"
             style={{ 
               background: 'rgba(0,0,0,0.8)',
