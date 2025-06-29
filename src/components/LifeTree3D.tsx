@@ -63,7 +63,7 @@ export const LifeTree3D: React.FC<LifeTree3DProps> = ({ lifeStats, theme }) => {
     canopySpread: 1.0,
     windStrength: 0.3,
     sunIntensity: 0.8,
-    timeOfDay: 12
+    timeOfDay: 15
   });
 
   // Initialize Three.js scene
