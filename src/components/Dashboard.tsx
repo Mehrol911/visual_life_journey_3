@@ -209,7 +209,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, lifeSta
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-800">
-                  Life Tree
+                  Intentional
                 </h1>
                 <p className="text-sm text-gray-600">
                   {user.profession.theme.name} Journey
