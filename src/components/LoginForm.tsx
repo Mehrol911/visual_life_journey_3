@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Lock, Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, LogIn, AlertCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { resendConfirmation } from '../lib/supabase';
 
 interface LoginFormProps {
   onSwitchToRegister: () => void;
@@ -12,6 +13,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
+  const [showResendOption, setShowResendOption] = useState(false);
+  const [resendingConfirmation, setResendingConfirmation] = useState(false);
 
   const { login, loading, error } = useAuth();
 
@@ -40,7 +43,38 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
     const result = await login(email, password);
     
     if (!result.success) {
-      setFormErrors({ general: result.error || 'Login failed' });
+      const errorMessage = result.error || 'Login failed';
+      setFormErrors({ general: errorMessage });
+      
+      // Show resend option if error is about email confirmation
+      if (errorMessage.toLowerCase().includes('confirm') || 
+          errorMessage.toLowerCase().includes('verification')) {
+        setShowResendOption(true);
+      }
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!email) {
+      setFormErrors({ general: 'Please enter your email address first' });
+      return;
+    }
+    
+    setResendingConfirmation(true);
+    try {
+      const { error } = await resendConfirmation(email);
+      if (error) {
+        setFormErrors({ general: error.message });
+      } else {
+        setFormErrors({ 
+          success: 'Confirmation email sent! Please check your inbox and click the link to verify your account.' 
+        });
+        setShowResendOption(false);
+      }
+    } catch (err) {
+      setFormErrors({ general: 'Failed to resend confirmation email' });
+    } finally {
+      setResendingConfirmation(false);
     }
   };
 
@@ -95,6 +129,55 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
             </motion.div>
           )}
 
+          {/* Success Message */}
+          {formErrors.success && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 rounded-xl border flex items-center"
+              style={{
+                background: 'rgba(34, 197, 94, 0.1)',
+                borderColor: '#22c55e',
+                color: '#22c55e'
+              }}
+            >
+              <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+              <span className="text-sm">{formErrors.success}</span>
+            </motion.div>
+          )}
+
+          {/* Resend Confirmation Option */}
+          {showResendOption && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 rounded-xl border"
+              style={{
+                background: 'rgba(59, 130, 246, 0.1)',
+                borderColor: '#3b82f6',
+                color: '#60a5fa'
+              }}
+            >
+              <p className="text-sm mb-3">
+                Need to confirm your email? We can resend the confirmation link.
+              </p>
+              <button
+                onClick={handleResendConfirmation}
+                disabled={resendingConfirmation}
+                className="text-sm font-semibold underline hover:no-underline transition-all duration-200 disabled:opacity-50"
+              >
+                {resendingConfirmation ? (
+                  <span className="flex items-center">
+                    <RefreshCw className="w-4 h-4 animate-spin mr-1" />
+                    Resending...
+                  </span>
+                ) : (
+                  'Resend Confirmation Email'
+                )}
+              </button>
+            </motion.div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email Field */}
             <div>
@@ -110,6 +193,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
                   if (formErrors.email) {
                     setFormErrors(prev => ({ ...prev, email: '' }));
                   }
+                  setShowResendOption(false);
                 }}
                 className="w-full px-6 py-4 rounded-2xl border-2 backdrop-blur-sm focus:outline-none transition-all duration-300 text-white"
                 style={{

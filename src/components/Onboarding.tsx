@@ -2,15 +2,16 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ProfessionSelector } from './ProfessionSelector';
 import { ProfessionTheme } from '../types';
-import { Calendar, Sparkles, TreePine, Star, Mail, Lock, Eye, EyeOff, UserPlus, LogIn, AlertCircle } from 'lucide-react';
+import { Calendar, Sparkles, TreePine, Star, Mail, Lock, Eye, EyeOff, UserPlus, LogIn, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { resendConfirmation } from '../lib/supabase';
 
 interface OnboardingProps {
   onComplete: (data: { profession: ProfessionTheme; birthDate: string; name: string; email: string; password: string }) => void;
   onSwitchToLogin?: () => void;
 }
 
-type Step = 'welcome' | 'profession' | 'details' | 'signin' | 'inspiration';
+type Step = 'welcome' | 'profession' | 'details' | 'signin' | 'inspiration' | 'email-confirmation';
 
 interface AuthData {
   email: string;
@@ -36,6 +37,8 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSwitchToLo
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const [registrationEmail, setRegistrationEmail] = useState('');
+  const [resendingConfirmation, setResendingConfirmation] = useState(false);
 
   const { register, loading, error } = useAuth();
 
@@ -133,14 +136,20 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSwitchToLo
         });
 
         if (result.success) {
-          // Call the original onComplete for backward compatibility
-          onComplete({
-            profession: selectedProfession,
-            birthDate,
-            name: name.trim(),
-            email: authData.email,
-            password: authData.password
-          });
+          // Check if email confirmation is required
+          if (result.message && result.message.includes('check your email')) {
+            setRegistrationEmail(authData.email);
+            setCurrentStep('email-confirmation');
+          } else {
+            // Call the original onComplete for backward compatibility
+            onComplete({
+              profession: selectedProfession,
+              birthDate,
+              name: name.trim(),
+              email: authData.email,
+              password: authData.password
+            });
+          }
         } else {
           // Handle registration error
           setAuthErrors({ general: result.error || 'Registration failed' });
@@ -153,6 +162,27 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSwitchToLo
       } finally {
         setIsCreatingAccount(false);
       }
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!registrationEmail) return;
+    
+    setResendingConfirmation(true);
+    try {
+      const { error } = await resendConfirmation(registrationEmail);
+      if (error) {
+        setAuthErrors({ general: error.message });
+      } else {
+        setAuthErrors({ general: '' });
+        // Show success message briefly
+        setAuthErrors({ success: 'Confirmation email sent! Please check your inbox.' });
+        setTimeout(() => setAuthErrors({ success: '' }), 3000);
+      }
+    } catch (err) {
+      setAuthErrors({ general: 'Failed to resend confirmation email' });
+    } finally {
+      setResendingConfirmation(false);
     }
   };
 
@@ -722,6 +752,23 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSwitchToLo
             </motion.div>
           )}
 
+          {/* Success Message */}
+          {authErrors.success && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 rounded-xl border flex items-center"
+              style={{
+                background: 'rgba(34, 197, 94, 0.1)',
+                borderColor: '#22c55e',
+                color: '#22c55e'
+              }}
+            >
+              <CheckCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+              <span className="text-sm">{authErrors.success}</span>
+            </motion.div>
+          )}
+
           <div className="space-y-6">
             {/* Email Field */}
             <div>
@@ -1014,6 +1061,134 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSwitchToLo
     </motion.div>
   );
 
+  const renderEmailConfirmation = () => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="min-h-screen flex items-center justify-center p-8 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900"
+    >
+      <div className="max-w-2xl w-full">
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          className="p-8 rounded-3xl backdrop-blur-lg border shadow-2xl text-center"
+          style={{ 
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.08) 100%)',
+            borderColor: selectedProfession?.colors.primary + '40',
+          }}
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", duration: 0.6 }}
+            className="w-20 h-20 mx-auto mb-6 rounded-full flex items-center justify-center"
+            style={{ background: selectedProfession?.gradients.primary }}
+          >
+            <Mail className="w-10 h-10 text-white" />
+          </motion.div>
+
+          <h2 className="text-4xl font-bold mb-4 text-white">
+            Check Your Email
+          </h2>
+          
+          <p className="text-xl text-gray-300 mb-6">
+            We've sent a confirmation link to:
+          </p>
+          
+          <div className="p-4 rounded-xl border mb-6"
+               style={{
+                 background: 'rgba(255,255,255,0.1)',
+                 borderColor: selectedProfession?.colors.primary + '30'
+               }}>
+            <p className="text-lg font-semibold text-white">{registrationEmail}</p>
+          </div>
+
+          <p className="text-gray-300 mb-8 leading-relaxed">
+            Please click the confirmation link in your email to complete your registration. 
+            Once confirmed, you can sign in and start your Life Tree journey.
+          </p>
+
+          {/* Error Display */}
+          {authErrors.general && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 rounded-xl border flex items-center"
+              style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                borderColor: '#ef4444',
+                color: '#ef4444'
+              }}
+            >
+              <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+              <span className="text-sm">{authErrors.general}</span>
+            </motion.div>
+          )}
+
+          {/* Success Message */}
+          {authErrors.success && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 rounded-xl border flex items-center"
+              style={{
+                background: 'rgba(34, 197, 94, 0.1)',
+                borderColor: '#22c55e',
+                color: '#22c55e'
+              }}
+            >
+              <CheckCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+              <span className="text-sm">{authErrors.success}</span>
+            </motion.div>
+          )}
+
+          <div className="space-y-4">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleResendConfirmation}
+              disabled={resendingConfirmation}
+              className="w-full px-6 py-3 rounded-xl border-2 text-white font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: 'rgba(255,255,255,0.1)',
+                borderColor: selectedProfession?.colors.primary + '40'
+              }}
+            >
+              {resendingConfirmation ? (
+                <span className="flex items-center justify-center">
+                  <RefreshCw className="w-5 h-5 animate-spin mr-2" />
+                  Resending...
+                </span>
+              ) : (
+                <>
+                  <RefreshCw className="w-5 h-5 inline mr-2" />
+                  Resend Confirmation Email
+                </>
+              )}
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={onSwitchToLogin}
+              className="w-full px-6 py-3 rounded-xl font-semibold text-white transition-all duration-300"
+              style={{ background: selectedProfession?.gradients.primary }}
+            >
+              <LogIn className="w-5 h-5 inline mr-2" />
+              Go to Sign In
+            </motion.button>
+          </div>
+
+          <p className="text-sm text-gray-400 mt-6">
+            Didn't receive the email? Check your spam folder or try resending.
+          </p>
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+
   return (
     <div className="relative">
       <AnimatePresence mode="wait">
@@ -1022,6 +1197,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSwitchToLo
         {currentStep === 'details' && renderDetails()}
         {currentStep === 'signin' && renderSignIn()}
         {currentStep === 'inspiration' && renderInspiration()}
+        {currentStep === 'email-confirmation' && renderEmailConfirmation()}
       </AnimatePresence>
     </div>
   );
