@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Onboarding } from './components/Onboarding';
 import { LoginForm } from './components/LoginForm';
 import { Dashboard } from './components/Dashboard';
+import { AuthCallback } from './components/AuthCallback';
 import { ProfessionTheme, User } from './types';
 import { calculateLifeStats } from './utils/lifeCalculations';
 import { useAuth } from './hooks/useAuth';
@@ -17,7 +19,7 @@ interface OnboardingData {
 
 type AppView = 'onboarding' | 'login' | 'dashboard';
 
-function App() {
+function AppContent() {
   const { user, loading, logout } = useAuth();
   const [currentView, setCurrentView] = useState<AppView>('onboarding');
 
@@ -127,6 +129,17 @@ function App() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/*" element={<AppContent />} />
+      </Routes>
+    </Router>
   );
 }
 

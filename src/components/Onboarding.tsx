@@ -153,7 +153,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSwitchToLo
         } else {
           // Handle registration error
           setAuthErrors({ general: result.error || 'Registration failed' });
-          setCurrentStep('signin'); // Go back to signin step to show error
+          setCurrentStep('signin');
         }
       } catch (err) {
         console.error('Registration error:', err);

@@ -26,8 +26,8 @@ export const signUp = async (email: string, password: string, userData: any) => 
       password,
       options: {
         data: userData,
-        // Redirect URL for email confirmation (optional)
-        emailRedirectTo: window.location.origin
+        // Use the current origin for email confirmation redirect
+        emailRedirectTo: `${window.location.origin}/auth/callback`
       }
     })
     return { data, error }
@@ -101,7 +101,7 @@ export const resendConfirmation = async (email: string) => {
       type: 'signup',
       email: email,
       options: {
-        emailRedirectTo: window.location.origin
+        emailRedirectTo: `${window.location.origin}/auth/callback`
       }
     })
     return { data, error }
@@ -110,6 +110,31 @@ export const resendConfirmation = async (email: string) => {
     return { 
       data: null, 
       error: { message: err instanceof Error ? err.message : 'Failed to resend confirmation' } 
+    }
+  }
+}
+
+// Helper function to manually confirm user (for development/testing)
+export const confirmUser = async (email: string) => {
+  try {
+    // This is for development purposes only
+    // In production, users should click the email link
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password: 'temp' // This will fail but trigger the flow
+    })
+    
+    // If the error is about unconfirmed email, we can try to resend
+    if (error && error.message.includes('Email not confirmed')) {
+      return await resendConfirmation(email)
+    }
+    
+    return { data, error }
+  } catch (err) {
+    console.error('Confirm user error:', err)
+    return { 
+      data: null, 
+      error: { message: err instanceof Error ? err.message : 'Failed to confirm user' } 
     }
   }
 }
