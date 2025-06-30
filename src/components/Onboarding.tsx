@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 
 interface OnboardingProps {
   onComplete: (data: { profession: ProfessionTheme; birthDate: string; name: string; email: string; password: string }) => void;
+  onSwitchToLogin?: () => void;
 }
 
 type Step = 'welcome' | 'profession' | 'details' | 'signin' | 'inspiration';
@@ -17,7 +18,7 @@ interface AuthData {
   confirmPassword: string;
 }
 
-export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
+export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSwitchToLogin }) => {
   const [currentStep, setCurrentStep] = useState<Step>('welcome');
   const [selectedProfession, setSelectedProfession] = useState<ProfessionTheme | null>(null);
   const [dateError, setDateError] = useState('');
@@ -465,7 +466,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
               y: -5
             }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => setCurrentStep('signin')}
+            onClick={onSwitchToLogin}
             className="relative px-12 py-5 rounded-full font-bold text-xl overflow-hidden group shadow-2xl border-2 border-white/30 backdrop-blur-lg"
             style={{
               background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',

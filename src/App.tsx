@@ -79,7 +79,10 @@ function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Onboarding onComplete={handleOnboardingComplete} />
+            <Onboarding 
+              onComplete={handleOnboardingComplete} 
+              onSwitchToLogin={handleSwitchToLogin}
+            />
           </motion.div>
         )}
         
