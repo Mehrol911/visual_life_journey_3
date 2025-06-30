@@ -420,7 +420,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSwitchToLo
               <Star className="w-6 h-6 text-yellow-400 mr-3" />
             </motion.div>
             <p className="text-lg text-blue-200 font-semibold">
-              — Hasan al-Basri
+              — Inspired by Hasan al-Basri
             </p>
             <motion.div
               animate={{ rotate: [360, 0] }}
