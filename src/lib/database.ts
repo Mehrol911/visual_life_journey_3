@@ -66,6 +66,8 @@ export interface Relative {
   contact_info: Record<string, any>
   image_url?: string
   is_favorite: boolean
+  gift_ideas: string[]
+  personal_notes?: string
   created_at: string
   updated_at: string
 }
@@ -295,7 +297,7 @@ export const workoutsAPI = {
   }
 }
 
-// Relatives API
+// Enhanced Relatives API with all new fields
 export const relativesAPI = {
   async getAll(): Promise<Relative[]> {
     const { data, error } = await supabase
@@ -307,13 +309,71 @@ export const relativesAPI = {
     return data || []
   },
 
+  async getUpcomingBirthdays(days: number = 30): Promise<Relative[]> {
+    const { data, error } = await supabase
+      .from('relatives')
+      .select('*')
+      .not('birth_date', 'is', null)
+      .order('birth_date', { ascending: true })
+    
+    if (error) throw error
+    
+    // Filter for upcoming birthdays in the next X days
+    const today = new Date()
+    const upcoming = (data || []).filter(relative => {
+      if (!relative.birth_date) return false
+      
+      const birthDate = new Date(relative.birth_date)
+      const thisYear = today.getFullYear()
+      const nextYear = thisYear + 1
+      
+      // Create birthday dates for this year and next year
+      const birthdayThisYear = new Date(thisYear, birthDate.getMonth(), birthDate.getDate())
+      const birthdayNextYear = new Date(nextYear, birthDate.getMonth(), birthDate.getDate())
+      
+      // Check if birthday is within the next X days
+      const timeDiffThisYear = birthdayThisYear.getTime() - today.getTime()
+      const timeDiffNextYear = birthdayNextYear.getTime() - today.getTime()
+      const daysDiffThisYear = Math.ceil(timeDiffThisYear / (1000 * 3600 * 24))
+      const daysDiffNextYear = Math.ceil(timeDiffNextYear / (1000 * 3600 * 24))
+      
+      return (daysDiffThisYear >= 0 && daysDiffThisYear <= days) || 
+             (daysDiffNextYear >= 0 && daysDiffNextYear <= days)
+    })
+    
+    return upcoming
+  },
+
+  async getBirthdaysThisMonth(): Promise<Relative[]> {
+    const { data, error } = await supabase
+      .from('relatives')
+      .select('*')
+      .not('birth_date', 'is', null)
+    
+    if (error) throw error
+    
+    const today = new Date()
+    const currentMonth = today.getMonth()
+    
+    return (data || []).filter(relative => {
+      if (!relative.birth_date) return false
+      const birthDate = new Date(relative.birth_date)
+      return birthDate.getMonth() === currentMonth
+    })
+  },
+
   async create(relative: Omit<Relative, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<Relative> {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('User not authenticated')
 
     const { data, error } = await supabase
       .from('relatives')
-      .insert({ ...relative, user_id: user.id })
+      .insert({ 
+        ...relative, 
+        user_id: user.id,
+        gift_ideas: relative.gift_ideas || [],
+        contact_info: relative.contact_info || {}
+      })
       .select()
       .single()
     
