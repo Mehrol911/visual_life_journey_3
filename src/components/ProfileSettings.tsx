@@ -10,11 +10,13 @@ import {
   Settings,
   ChevronDown,
   Check,
-  AlertCircle
+  AlertCircle,
+  Loader
 } from 'lucide-react';
 import { ProfessionTheme, User as UserType } from '../types';
 import { PROFESSIONS } from '../data/professions';
 import { useAuth } from '../hooks/useAuth';
+import { userPreferencesAPI } from '../lib/database';
 
 interface ProfileSettingsProps {
   user: UserType;
@@ -83,23 +85,40 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
     setIsSubmitting(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Update user profile in Supabase Auth
+      const result = await updateProfile({
+        fullName: formData.fullName.trim(),
+        birthDate: formData.birthDate,
+        profession: formData.profession
+      });
 
-      const updatedUser: UserType = {
-        ...user,
-        full_name: formData.fullName.trim(),
-        birth_date: formData.birthDate,
-        profession: {
-          ...user.profession,
-          theme: formData.profession
-        }
-      };
+      if (result.success) {
+        // Create updated user object
+        const updatedUser: UserType = {
+          ...user,
+          full_name: formData.fullName.trim(),
+          birth_date: formData.birthDate,
+          profession: {
+            ...user.profession,
+            theme: formData.profession
+          }
+        };
 
-      onProfileUpdate(updatedUser);
-      setHasChanges(false);
+        // Also save preferences to database
+        await userPreferencesAPI.upsert({
+          theme: formData.profession.name,
+          birthDate: formData.birthDate,
+          fullName: formData.fullName.trim()
+        });
+
+        onProfileUpdate(updatedUser);
+        setHasChanges(false);
+      } else {
+        setErrors({ general: result.error || 'Failed to update profile' });
+      }
     } catch (error) {
       console.error('Failed to update profile:', error);
+      setErrors({ general: 'An unexpected error occurred' });
     } finally {
       setIsSubmitting(false);
     }
@@ -170,6 +189,23 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
             </div>
           </div>
         </motion.div>
+
+        {/* Error Display */}
+        {errors.general && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 rounded-xl border flex items-center"
+            style={{
+              background: 'rgba(239, 68, 68, 0.1)',
+              borderColor: '#ef4444',
+              color: '#ef4444'
+            }}
+          >
+            <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+            <span className="text-sm">{errors.general}</span>
+          </motion.div>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Left Column - Personal Information */}
@@ -452,7 +488,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
             <span className="relative flex items-center">
               {isSubmitting ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3"></div>
+                  <Loader className="w-5 h-5 animate-spin mr-3" />
                   Saving Changes...
                 </>
               ) : (
