@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ProfessionTheme } from '../types';
+import { dailyReflectionsAPI, DailyReflection as DBDailyReflection } from '../lib/database';
 import { 
   Heart, 
   Target, 
@@ -21,36 +22,31 @@ import {
   Clock,
   TrendingUp,
   BarChart3,
-  Lightbulb
+  Lightbulb,
+  AlertCircle,
+  CheckCircle,
+  Loader
 } from 'lucide-react';
-
-interface DailyReflection {
-  id: string;
-  date: string; // YYYY-MM-DD format
-  reflection: string;
-  mood: number; // 1-10
-  gratitude: string[];
-  goals: string[];
-  createdAt: string;
-}
 
 interface DailyReflectionProps {
   theme: ProfessionTheme;
-  userBirthDate?: string; // For validation
+  userBirthDate?: string;
 }
 
 type ActiveView = 'overview' | 'add' | 'view';
 
 export const DailyReflection: React.FC<DailyReflectionProps> = ({ 
   theme, 
-  userBirthDate = '1990-01-01' // Default fallback
+  userBirthDate = '1990-01-01'
 }) => {
   const [activeView, setActiveView] = useState<ActiveView>('overview');
-  const [reflections, setReflections] = useState<DailyReflection[]>([]);
+  const [reflections, setReflections] = useState<DBDailyReflection[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedReflection, setSelectedReflection] = useState<DailyReflection | null>(null);
+  const [selectedReflection, setSelectedReflection] = useState<DBDailyReflection | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   
   // Form state for adding new reflection
   const [formData, setFormData] = useState({
@@ -62,12 +58,28 @@ export const DailyReflection: React.FC<DailyReflectionProps> = ({
   });
   
   const [errors, setErrors] = useState<{[key: string]: string}>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const moodEmojis = ['😞', '😔', '😐', '🙂', '😊', '😁', '🤩', '🥳', '😍', '🤩'];
   const moodLabels = ['Terrible', 'Bad', 'Poor', 'Okay', 'Good', 'Great', 'Amazing', 'Fantastic', 'Incredible', 'Perfect'];
   
   const itemsPerPage = 6;
+
+  // Load reflections on component mount
+  useEffect(() => {
+    loadReflections();
+  }, []);
+
+  const loadReflections = async () => {
+    try {
+      setLoading(true);
+      const data = await dailyReflectionsAPI.getAll();
+      setReflections(data);
+    } catch (error) {
+      console.error('Error loading reflections:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Date validation
   const validateDate = (date: string): boolean => {
@@ -75,7 +87,6 @@ export const DailyReflection: React.FC<DailyReflectionProps> = ({
     const today = new Date();
     const birthDate = new Date(userBirthDate);
     
-    // Reset time to compare dates only
     today.setHours(23, 59, 59, 999);
     selectedDate.setHours(0, 0, 0, 0);
     birthDate.setHours(0, 0, 0, 0);
@@ -86,7 +97,6 @@ export const DailyReflection: React.FC<DailyReflectionProps> = ({
   const validateForm = (): boolean => {
     const newErrors: {[key: string]: string} = {};
 
-    // Date validation
     if (!formData.date) {
       newErrors.date = 'Date is required';
     } else if (!validateDate(formData.date)) {
@@ -94,26 +104,22 @@ export const DailyReflection: React.FC<DailyReflectionProps> = ({
       const today = new Date();
       newErrors.date = `Date must be between ${birthDate.toLocaleDateString()} and ${today.toLocaleDateString()}`;
     } else {
-      // Check if reflection already exists for this date
       const existingReflection = reflections.find(r => r.date === formData.date);
       if (existingReflection) {
         newErrors.date = 'You already have a reflection for this date';
       }
     }
 
-    // Reflection validation
     if (!formData.reflection.trim()) {
       newErrors.reflection = 'Reflection is required';
     } else if (formData.reflection.trim().length < 10) {
       newErrors.reflection = 'Reflection should be at least 10 characters long';
     }
 
-    // Gratitude validation
     if (formData.gratitude.some(item => !item.trim())) {
       newErrors.gratitude = 'All three gratitude items are required';
     }
 
-    // Goals validation
     if (formData.goals.some(goal => !goal.trim())) {
       newErrors.goals = 'All three goals are required';
     }
@@ -125,41 +131,47 @@ export const DailyReflection: React.FC<DailyReflectionProps> = ({
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
-    setIsSubmitting(true);
+    setSaving(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const newReflection = await dailyReflectionsAPI.create({
+        date: formData.date,
+        reflection: formData.reflection.trim(),
+        mood: formData.mood,
+        gratitude: formData.gratitude.map(item => item.trim()),
+        goals: formData.goals.map(goal => goal.trim())
+      });
 
-    const newReflection: DailyReflection = {
-      id: Date.now().toString(),
-      date: formData.date,
-      reflection: formData.reflection.trim(),
-      mood: formData.mood,
-      gratitude: formData.gratitude.map(item => item.trim()),
-      goals: formData.goals.map(goal => goal.trim()),
-      createdAt: new Date().toISOString()
-    };
+      setReflections(prev => [newReflection, ...prev].sort((a, b) => 
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      ));
 
-    setReflections(prev => [newReflection, ...prev].sort((a, b) => 
-      new Date(b.date).getTime() - new Date(a.date).getTime()
-    ));
-
-    // Reset form
-    setFormData({
-      date: new Date().toISOString().split('T')[0],
-      reflection: '',
-      mood: 5,
-      gratitude: ['', '', ''],
-      goals: ['', '', '']
-    });
-    
-    setErrors({});
-    setIsSubmitting(false);
-    setActiveView('overview');
+      // Reset form
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        reflection: '',
+        mood: 5,
+        gratitude: ['', '', ''],
+        goals: ['', '', '']
+      });
+      
+      setErrors({});
+      setActiveView('overview');
+    } catch (error) {
+      console.error('Error saving reflection:', error);
+      setErrors({ general: 'Failed to save reflection. Please try again.' });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const deleteReflection = (id: string) => {
-    setReflections(prev => prev.filter(r => r.id !== id));
+  const deleteReflection = async (id: string) => {
+    try {
+      await dailyReflectionsAPI.delete(id);
+      setReflections(prev => prev.filter(r => r.id !== id));
+    } catch (error) {
+      console.error('Error deleting reflection:', error);
+    }
   };
 
   // Filter reflections
@@ -327,131 +339,141 @@ export const DailyReflection: React.FC<DailyReflectionProps> = ({
         </motion.button>
       </motion.div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-20">
+          <Loader className="w-8 h-8 animate-spin" style={{ color: theme.colors.primary }} />
+          <span className="ml-3 text-gray-600">Loading your reflections...</span>
+        </div>
+      )}
+
       {/* Reflections Grid */}
-      <AnimatePresence mode="wait">
-        {paginatedReflections.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="text-center py-20"
-          >
-            <BookOpen className="w-24 h-24 mx-auto mb-6 text-gray-300" />
-            <h3 className="text-2xl font-bold text-gray-600 mb-4">
-              {reflections.length === 0 ? 'Start Your Reflection Journey' : 'No Reflections Found'}
-            </h3>
-            <p className="text-gray-500 mb-8">
-              {reflections.length === 0 
-                ? 'Begin documenting your daily thoughts and experiences'
-                : 'Try adjusting your search or date filter'
-              }
-            </p>
-            {reflections.length === 0 && (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setActiveView('add')}
-                className="px-8 py-3 rounded-xl font-semibold text-white shadow-lg"
-                style={{ background: theme.gradients.primary }}
-              >
-                <Plus className="w-5 h-5 inline mr-2" />
-                Write Your First Reflection
-              </motion.button>
-            )}
-          </motion.div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-          >
-            {paginatedReflections.map((reflection, index) => (
-              <motion.div
-                key={reflection.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="p-6 rounded-3xl backdrop-blur-lg border shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
-                  borderColor: theme.colors.primary + '20'
-                }}
-                onClick={() => {
-                  setSelectedReflection(reflection);
-                  setActiveView('view');
-                }}
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-semibold text-gray-600">
-                        {new Date(reflection.date).toLocaleDateString('en-US', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
+      {!loading && (
+        <AnimatePresence mode="wait">
+          {paginatedReflections.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="text-center py-20"
+            >
+              <BookOpen className="w-24 h-24 mx-auto mb-6 text-gray-300" />
+              <h3 className="text-2xl font-bold text-gray-600 mb-4">
+                {reflections.length === 0 ? 'Start Your Reflection Journey' : 'No Reflections Found'}
+              </h3>
+              <p className="text-gray-500 mb-8">
+                {reflections.length === 0 
+                  ? 'Begin documenting your daily thoughts and experiences'
+                  : 'Try adjusting your search or date filter'
+                }
+              </p>
+              {reflections.length === 0 && (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setActiveView('add')}
+                  className="px-8 py-3 rounded-xl font-semibold text-white shadow-lg"
+                  style={{ background: theme.gradients.primary }}
+                >
+                  <Plus className="w-5 h-5 inline mr-2" />
+                  Write Your First Reflection
+                </motion.button>
+              )}
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            >
+              {paginatedReflections.map((reflection, index) => (
+                <motion.div
+                  key={reflection.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="p-6 rounded-3xl backdrop-blur-lg border shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
+                    borderColor: theme.colors.primary + '20'
+                  }}
+                  onClick={() => {
+                    setSelectedReflection(reflection);
+                    setActiveView('view');
+                  }}
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-semibold text-gray-600">
+                          {new Date(reflection.date).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </p>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-2xl">{moodEmojis[reflection.mood - 1]}</span>
+                          <span className="text-sm font-bold" style={{ color: theme.colors.primary }}>
+                            {reflection.mood}/10
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-gray-700 line-clamp-3 mb-4 leading-relaxed">
+                        {reflection.reflection}
                       </p>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-2xl">{moodEmojis[reflection.mood - 1]}</span>
-                        <span className="text-sm font-bold" style={{ color: theme.colors.primary }}>
-                          {reflection.mood}/10
-                        </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                        Gratitude
+                      </h4>
+                      <div className="space-y-1">
+                        {reflection.gratitude.slice(0, 2).map((item, idx) => (
+                          <p key={idx} className="text-sm text-gray-600 line-clamp-1">
+                            • {item}
+                          </p>
+                        ))}
+                        {reflection.gratitude.length > 2 && (
+                          <p className="text-xs text-gray-400">+{reflection.gratitude.length - 2} more</p>
+                        )}
                       </div>
                     </div>
-                    <p className="text-gray-700 line-clamp-3 mb-4 leading-relaxed">
-                      {reflection.reflection}
-                    </p>
                   </div>
-                </div>
 
-                <div className="space-y-3">
-                  <div>
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                      Gratitude
-                    </h4>
-                    <div className="space-y-1">
-                      {reflection.gratitude.slice(0, 2).map((item, idx) => (
-                        <p key={idx} className="text-sm text-gray-600 line-clamp-1">
-                          • {item}
-                        </p>
-                      ))}
-                      {reflection.gratitude.length > 2 && (
-                        <p className="text-xs text-gray-400">+{reflection.gratitude.length - 2} more</p>
-                      )}
-                    </div>
+                  <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedReflection(reflection);
+                        setActiveView('view');
+                      }}
+                      className="flex items-center text-sm font-semibold transition-colors duration-200"
+                      style={{ color: theme.colors.primary }}
+                    >
+                      <Eye className="w-4 h-4 mr-1" />
+                      View Full
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteReflection(reflection.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-2 rounded-full hover:bg-red-100 text-red-500 transition-all duration-300"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
-                </div>
-
-                <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedReflection(reflection);
-                      setActiveView('view');
-                    }}
-                    className="flex items-center text-sm font-semibold transition-colors duration-200"
-                    style={{ color: theme.colors.primary }}
-                  >
-                    <Eye className="w-4 h-4 mr-1" />
-                    View Full
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteReflection(reflection.id);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 p-2 rounded-full hover:bg-red-100 text-red-500 transition-all duration-300"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (
@@ -518,6 +540,23 @@ export const DailyReflection: React.FC<DailyReflectionProps> = ({
           <p className="text-gray-600">Capture your thoughts and experiences</p>
         </div>
       </div>
+
+      {/* Error Display */}
+      {errors.general && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 p-4 rounded-xl border flex items-center"
+          style={{
+            background: 'rgba(239, 68, 68, 0.1)',
+            borderColor: '#ef4444',
+            color: '#ef4444'
+          }}
+        >
+          <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+          <span className="text-sm">{errors.general}</span>
+        </motion.div>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-8">
         {/* Left Column */}
@@ -798,7 +837,7 @@ export const DailyReflection: React.FC<DailyReflectionProps> = ({
           }}
           whileTap={{ scale: 0.95 }}
           onClick={handleSubmit}
-          disabled={isSubmitting}
+          disabled={saving}
           className="px-12 py-4 rounded-full text-white font-semibold text-lg relative overflow-hidden group shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ 
             background: theme.gradients.primary,
@@ -807,9 +846,9 @@ export const DailyReflection: React.FC<DailyReflectionProps> = ({
         >
           <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           <span className="relative flex items-center">
-            {isSubmitting ? (
+            {saving ? (
               <>
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3"></div>
+                <Loader className="w-5 h-5 animate-spin mr-3" />
                 Saving Reflection...
               </>
             ) : (
@@ -861,7 +900,7 @@ export const DailyReflection: React.FC<DailyReflectionProps> = ({
               </h2>
               <p className="text-gray-600 flex items-center">
                 <Clock className="w-4 h-4 mr-2" />
-                Created {new Date(selectedReflection.createdAt).toLocaleDateString()}
+                Created {new Date(selectedReflection.created_at).toLocaleDateString()}
               </p>
             </div>
           </div>
