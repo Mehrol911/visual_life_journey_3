@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ProfessionTheme } from '../types';
+import { workoutsAPI, Workout } from '../lib/database';
 import { 
   Dumbbell,
   Plus,
@@ -20,24 +21,13 @@ import {
   BarChart3,
   X,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Loader
 } from 'lucide-react';
-
-interface Workout {
-  id: string;
-  date: string; // YYYY-MM-DD format
-  activity: string;
-  emoji: string;
-  duration: number; // in minutes
-  intensity: 'Low' | 'Medium' | 'High';
-  notes?: string;
-  calories?: number;
-  createdAt: string;
-}
 
 interface WorkoutsProps {
   theme: ProfessionTheme;
-  userBirthDate?: string; // For validation
+  userBirthDate?: string;
 }
 
 type ActiveView = 'overview' | 'add' | 'view';
@@ -77,6 +67,8 @@ export const Workouts: React.FC<WorkoutsProps> = ({
   const [selectedActivity, setSelectedActivity] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   
   // Form state for adding new workout
   const [formData, setFormData] = useState({
@@ -90,10 +82,26 @@ export const Workouts: React.FC<WorkoutsProps> = ({
   });
   
   const [errors, setErrors] = useState<{[key: string]: string}>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showActivitySelector, setShowActivitySelector] = useState(false);
 
   const itemsPerPage = 6;
+
+  // Load workouts on component mount
+  useEffect(() => {
+    loadWorkouts();
+  }, []);
+
+  const loadWorkouts = async () => {
+    try {
+      setLoading(true);
+      const data = await workoutsAPI.getAll();
+      setWorkouts(data);
+    } catch (error) {
+      console.error('Error loading workouts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Date validation
   const validateDate = (date: string): boolean => {
@@ -101,7 +109,6 @@ export const Workouts: React.FC<WorkoutsProps> = ({
     const today = new Date();
     const birthDate = new Date(userBirthDate);
     
-    // Reset time to compare dates only
     today.setHours(23, 59, 59, 999);
     selectedDate.setHours(0, 0, 0, 0);
     birthDate.setHours(0, 0, 0, 0);
@@ -119,7 +126,6 @@ export const Workouts: React.FC<WorkoutsProps> = ({
   const validateForm = (): boolean => {
     const newErrors: {[key: string]: string} = {};
 
-    // Date validation
     if (!formData.date) {
       newErrors.date = 'Date is required';
     } else if (!validateDate(formData.date)) {
@@ -128,18 +134,15 @@ export const Workouts: React.FC<WorkoutsProps> = ({
       newErrors.date = `Date must be between ${birthDate.toLocaleDateString()} and ${today.toLocaleDateString()}`;
     }
 
-    // Activity validation
     if (!formData.activity) {
       newErrors.activity = 'Activity is required';
     }
 
-    // Duration validation
     if (!formData.duration || formData.duration <= 0) {
       newErrors.duration = 'Duration must be greater than 0';
-    } else if (formData.duration > 1440) { // 24 hours = 1440 minutes
+    } else if (formData.duration > 1440) {
       newErrors.duration = 'Duration cannot exceed 24 hours (1440 minutes)';
     } else {
-      // Check if total workout time for the day would exceed 24 hours
       const existingTime = getTotalWorkoutTimeForDate(formData.date);
       const totalTime = existingTime + formData.duration;
       
@@ -149,7 +152,6 @@ export const Workouts: React.FC<WorkoutsProps> = ({
       }
     }
 
-    // Calories validation (optional but if provided should be reasonable)
     if (formData.calories && (formData.calories < 0 || formData.calories > 2000)) {
       newErrors.calories = 'Calories should be between 0 and 2000';
     }
@@ -161,45 +163,51 @@ export const Workouts: React.FC<WorkoutsProps> = ({
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
-    setIsSubmitting(true);
+    setSaving(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const newWorkout = await workoutsAPI.create({
+        date: formData.date,
+        activity: formData.activity,
+        emoji: formData.emoji,
+        duration: formData.duration,
+        intensity: formData.intensity,
+        notes: formData.notes.trim() || undefined,
+        calories: formData.calories || undefined
+      });
 
-    const newWorkout: Workout = {
-      id: Date.now().toString(),
-      date: formData.date,
-      activity: formData.activity,
-      emoji: formData.emoji,
-      duration: formData.duration,
-      intensity: formData.intensity,
-      notes: formData.notes.trim() || undefined,
-      calories: formData.calories || undefined,
-      createdAt: new Date().toISOString()
-    };
+      setWorkouts(prev => [newWorkout, ...prev].sort((a, b) => 
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      ));
 
-    setWorkouts(prev => [newWorkout, ...prev].sort((a, b) => 
-      new Date(b.date).getTime() - new Date(a.date).getTime()
-    ));
-
-    // Reset form
-    setFormData({
-      date: new Date().toISOString().split('T')[0],
-      activity: '',
-      emoji: '',
-      duration: 30,
-      intensity: 'Medium',
-      notes: '',
-      calories: 0
-    });
-    
-    setErrors({});
-    setIsSubmitting(false);
-    setActiveView('overview');
+      // Reset form
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        activity: '',
+        emoji: '',
+        duration: 30,
+        intensity: 'Medium',
+        notes: '',
+        calories: 0
+      });
+      
+      setErrors({});
+      setActiveView('overview');
+    } catch (error) {
+      console.error('Error saving workout:', error);
+      setErrors({ general: 'Failed to save workout. Please try again.' });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const deleteWorkout = (id: string) => {
-    setWorkouts(prev => prev.filter(w => w.id !== id));
+  const deleteWorkout = async (id: string) => {
+    try {
+      await workoutsAPI.delete(id);
+      setWorkouts(prev => prev.filter(w => w.id !== id));
+    } catch (error) {
+      console.error('Error deleting workout:', error);
+    }
   };
 
   const selectActivity = (activity: typeof ACTIVITIES[0]) => {
@@ -432,122 +440,132 @@ export const Workouts: React.FC<WorkoutsProps> = ({
         </motion.button>
       </motion.div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-20">
+          <Loader className="w-8 h-8 animate-spin" style={{ color: theme.colors.primary }} />
+          <span className="ml-3 text-gray-600">Loading your workouts...</span>
+        </div>
+      )}
+
       {/* Workouts Grid */}
-      <AnimatePresence mode="wait">
-        {paginatedWorkouts.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="text-center py-20"
-          >
-            <Dumbbell className="w-24 h-24 mx-auto mb-6 text-gray-300" />
-            <h3 className="text-2xl font-bold text-gray-600 mb-4">
-              {workouts.length === 0 ? 'Start Your Fitness Journey' : 'No Workouts Found'}
-            </h3>
-            <p className="text-gray-500 mb-8">
-              {workouts.length === 0 
-                ? 'Begin tracking your workouts and build healthy habits'
-                : 'Try adjusting your search or filter criteria'
-              }
-            </p>
-            {workouts.length === 0 && (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setActiveView('add')}
-                className="px-8 py-3 rounded-xl font-semibold text-white shadow-lg"
-                style={{ background: theme.gradients.primary }}
-              >
-                <Plus className="w-5 h-5 inline mr-2" />
-                Log Your First Workout
-              </motion.button>
-            )}
-          </motion.div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-          >
-            {paginatedWorkouts.map((workout, index) => (
-              <motion.div
-                key={workout.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="p-6 rounded-3xl backdrop-blur-lg border shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
-                  borderColor: theme.colors.primary + '20'
-                }}
-                onClick={() => {
-                  setSelectedWorkout(workout);
-                  setActiveView('view');
-                }}
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="text-3xl">{workout.emoji}</div>
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-800">{workout.activity}</h3>
-                      <p className="text-sm text-gray-600">
-                        {new Date(workout.date).toLocaleDateString('en-US', {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </p>
+      {!loading && (
+        <AnimatePresence mode="wait">
+          {paginatedWorkouts.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="text-center py-20"
+            >
+              <Dumbbell className="w-24 h-24 mx-auto mb-6 text-gray-300" />
+              <h3 className="text-2xl font-bold text-gray-600 mb-4">
+                {workouts.length === 0 ? 'Start Your Fitness Journey' : 'No Workouts Found'}
+              </h3>
+              <p className="text-gray-500 mb-8">
+                {workouts.length === 0 
+                  ? 'Begin tracking your workouts and build healthy habits'
+                  : 'Try adjusting your search or filter criteria'
+                }
+              </p>
+              {workouts.length === 0 && (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setActiveView('add')}
+                  className="px-8 py-3 rounded-xl font-semibold text-white shadow-lg"
+                  style={{ background: theme.gradients.primary }}
+                >
+                  <Plus className="w-5 h-5 inline mr-2" />
+                  Log Your First Workout
+                </motion.button>
+              )}
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            >
+              {paginatedWorkouts.map((workout, index) => (
+                <motion.div
+                  key={workout.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="p-6 rounded-3xl backdrop-blur-lg border shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
+                    borderColor: theme.colors.primary + '20'
+                  }}
+                  onClick={() => {
+                    setSelectedWorkout(workout);
+                    setActiveView('view');
+                  }}
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="text-3xl">{workout.emoji}</div>
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-800">{workout.activity}</h3>
+                        <p className="text-sm text-gray-600">
+                          {new Date(workout.date).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteWorkout(workout.id);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 p-2 rounded-full hover:bg-red-100 text-red-500 transition-all duration-300"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Clock className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm font-semibold text-gray-700">
-                        {Math.floor(workout.duration / 60)}h {workout.duration % 60}m
-                      </span>
-                    </div>
-                    <div 
-                      className="px-3 py-1 rounded-full text-xs font-semibold text-white"
-                      style={{ backgroundColor: getIntensityColor(workout.intensity) }}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteWorkout(workout.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-2 rounded-full hover:bg-red-100 text-red-500 transition-all duration-300"
                     >
-                      {workout.intensity}
-                    </div>
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
 
-                  {workout.calories && (
-                    <div className="flex items-center space-x-2">
-                      <Zap className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">{workout.calories} calories</span>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Clock className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm font-semibold text-gray-700">
+                          {Math.floor(workout.duration / 60)}h {workout.duration % 60}m
+                        </span>
+                      </div>
+                      <div 
+                        className="px-3 py-1 rounded-full text-xs font-semibold text-white"
+                        style={{ backgroundColor: getIntensityColor(workout.intensity) }}
+                      >
+                        {workout.intensity}
+                      </div>
                     </div>
-                  )}
 
-                  {workout.notes && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <p className="text-sm text-gray-600 line-clamp-2 italic">
-                        "{workout.notes}"
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+                    {workout.calories && (
+                      <div className="flex items-center space-x-2">
+                        <Zap className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm text-gray-600">{workout.calories} calories</span>
+                      </div>
+                    )}
+
+                    {workout.notes && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <p className="text-sm text-gray-600 line-clamp-2 italic">
+                          "{workout.notes}"
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (
@@ -614,6 +632,23 @@ export const Workouts: React.FC<WorkoutsProps> = ({
           <p className="text-gray-600">Track your fitness activities and progress</p>
         </div>
       </div>
+
+      {/* Error Display */}
+      {errors.general && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 p-4 rounded-xl border flex items-center"
+          style={{
+            background: 'rgba(239, 68, 68, 0.1)',
+            borderColor: '#ef4444',
+            color: '#ef4444'
+          }}
+        >
+          <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+          <span className="text-sm">{errors.general}</span>
+        </motion.div>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-8">
         {/* Left Column */}
@@ -911,7 +946,7 @@ export const Workouts: React.FC<WorkoutsProps> = ({
           }}
           whileTap={{ scale: 0.95 }}
           onClick={handleSubmit}
-          disabled={isSubmitting || !formData.activity || !formData.duration}
+          disabled={saving || !formData.activity || !formData.duration}
           className="px-12 py-4 rounded-full text-white font-semibold text-lg relative overflow-hidden group shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ 
             background: theme.gradients.primary,
@@ -920,9 +955,9 @@ export const Workouts: React.FC<WorkoutsProps> = ({
         >
           <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           <span className="relative flex items-center">
-            {isSubmitting ? (
+            {saving ? (
               <>
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3"></div>
+                <Loader className="w-5 h-5 animate-spin mr-3" />
                 Saving Workout...
               </>
             ) : (
@@ -1130,8 +1165,8 @@ export const Workouts: React.FC<WorkoutsProps> = ({
 
             <div className="mt-6 pt-6 border-t border-gray-200">
               <p className="text-sm text-gray-500">
-                Logged on {new Date(selectedWorkout.createdAt).toLocaleDateString()} at{' '}
-                {new Date(selectedWorkout.createdAt).toLocaleTimeString()}
+                Logged on {new Date(selectedWorkout.created_at).toLocaleDateString()} at{' '}
+                {new Date(selectedWorkout.created_at).toLocaleTimeString()}
               </p>
             </div>
           </motion.div>
@@ -1139,6 +1174,17 @@ export const Workouts: React.FC<WorkoutsProps> = ({
       </motion.div>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="w-12 h-12 animate-spin mx-auto mb-4" style={{ color: theme.colors.primary }} />
+          <p className="text-gray-600">Loading your workouts...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen p-8 relative overflow-hidden">

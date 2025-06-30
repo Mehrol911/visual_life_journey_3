@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ProfessionTheme } from '../types';
+import { booksAPI, heroesAPI, Book, Hero } from '../lib/database';
 import { 
   BookOpen, 
   Plus, 
@@ -20,30 +21,10 @@ import {
   Users,
   Library,
   Camera,
-  Upload
+  Upload,
+  Loader,
+  AlertCircle
 } from 'lucide-react';
-
-interface Book {
-  id: string;
-  title: string;
-  author: string;
-  startDate: string; // MM/YYYY format
-  finishDate: string; // MM/YYYY format
-  rating: number; // 1-5 stars
-  keyTakeaways: string[];
-  notes?: string;
-  category?: string;
-}
-
-interface Hero {
-  id: string;
-  name: string;
-  profession: string;
-  description: string;
-  keyTakeaways: string[];
-  inspiration: string;
-  imageUrl?: string;
-}
 
 interface MyLibraryProps {
   theme: ProfessionTheme;
@@ -57,16 +38,18 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRating, setFilterRating] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   // Books state
   const [books, setBooks] = useState<Book[]>([]);
   const [currentBook, setCurrentBook] = useState<Partial<Book>>({
     title: '',
     author: '',
-    startDate: '',
-    finishDate: '',
+    start_date: '',
+    finish_date: '',
     rating: 5,
-    keyTakeaways: ['', '', ''],
+    key_takeaways: ['', '', ''],
     notes: '',
     category: ''
   });
@@ -77,12 +60,33 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
     name: '',
     profession: '',
     description: '',
-    keyTakeaways: ['', '', ''],
+    key_takeaways: ['', '', ''],
     inspiration: '',
-    imageUrl: ''
+    image_url: ''
   });
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  // Load data on component mount
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [booksData, heroesData] = await Promise.all([
+        booksAPI.getAll(),
+        heroesAPI.getAll()
+      ]);
+      setBooks(booksData);
+      setHeroes(heroesData);
+    } catch (error) {
+      console.error('Error loading library data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Generate month/year options
   const currentYear = new Date().getFullYear();
@@ -122,23 +126,23 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
     if (!currentBook.author?.trim()) {
       newErrors.author = 'Author name is required';
     }
-    if (!currentBook.startDate) {
-      newErrors.startDate = 'Start date is required';
+    if (!currentBook.start_date) {
+      newErrors.start_date = 'Start date is required';
     }
-    if (!currentBook.finishDate) {
-      newErrors.finishDate = 'Finish date is required';
+    if (!currentBook.finish_date) {
+      newErrors.finish_date = 'Finish date is required';
     }
     
     // Date validation: finish date should not be earlier than start date
-    if (currentBook.startDate && currentBook.finishDate) {
-      const dateComparison = compareDates(currentBook.startDate, currentBook.finishDate);
+    if (currentBook.start_date && currentBook.finish_date) {
+      const dateComparison = compareDates(currentBook.start_date, currentBook.finish_date);
       if (dateComparison > 0) {
-        newErrors.finishDate = 'Finish date cannot be earlier than start date';
+        newErrors.finish_date = 'Finish date cannot be earlier than start date';
       }
     }
     
-    if (currentBook.keyTakeaways?.some(takeaway => !takeaway.trim())) {
-      newErrors.keyTakeaways = 'All three key takeaways are required';
+    if (currentBook.key_takeaways?.some(takeaway => !takeaway.trim())) {
+      newErrors.key_takeaways = 'All three key takeaways are required';
     }
 
     setErrors(newErrors);
@@ -157,8 +161,8 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
     if (!currentHero.description?.trim()) {
       newErrors.description = 'Description is required';
     }
-    if (currentHero.keyTakeaways?.some(takeaway => !takeaway.trim())) {
-      newErrors.keyTakeaways = 'All three key takeaways are required';
+    if (currentHero.key_takeaways?.some(takeaway => !takeaway.trim())) {
+      newErrors.key_takeaways = 'All three key takeaways are required';
     }
     if (!currentHero.inspiration?.trim()) {
       newErrors.inspiration = 'Inspiration is required';
@@ -168,68 +172,92 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const saveBook = () => {
+  const saveBook = async () => {
     if (!validateBook()) return;
 
-    const newBook: Book = {
-      id: Date.now().toString(),
-      title: currentBook.title!,
-      author: currentBook.author!,
-      startDate: currentBook.startDate!,
-      finishDate: currentBook.finishDate!,
-      rating: currentBook.rating || 5,
-      keyTakeaways: currentBook.keyTakeaways!,
-      notes: currentBook.notes,
-      category: currentBook.category
-    };
+    setSaving(true);
+    try {
+      const newBook = await booksAPI.create({
+        title: currentBook.title!,
+        author: currentBook.author!,
+        start_date: currentBook.start_date!,
+        finish_date: currentBook.finish_date!,
+        rating: currentBook.rating || 5,
+        key_takeaways: currentBook.key_takeaways!,
+        notes: currentBook.notes,
+        category: currentBook.category
+      });
 
-    setBooks([...books, newBook]);
-    setCurrentBook({
-      title: '',
-      author: '',
-      startDate: '',
-      finishDate: '',
-      rating: 5,
-      keyTakeaways: ['', '', ''],
-      notes: '',
-      category: ''
-    });
-    setActiveModal(null);
-    setErrors({});
+      setBooks(prev => [newBook, ...prev]);
+      setCurrentBook({
+        title: '',
+        author: '',
+        start_date: '',
+        finish_date: '',
+        rating: 5,
+        key_takeaways: ['', '', ''],
+        notes: '',
+        category: ''
+      });
+      setActiveModal(null);
+      setErrors({});
+    } catch (error) {
+      console.error('Error saving book:', error);
+      setErrors({ general: 'Failed to save book. Please try again.' });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const saveHero = () => {
+  const saveHero = async () => {
     if (!validateHero()) return;
 
-    const newHero: Hero = {
-      id: Date.now().toString(),
-      name: currentHero.name!,
-      profession: currentHero.profession!,
-      description: currentHero.description!,
-      keyTakeaways: currentHero.keyTakeaways!,
-      inspiration: currentHero.inspiration!,
-      imageUrl: currentHero.imageUrl
-    };
+    setSaving(true);
+    try {
+      const newHero = await heroesAPI.create({
+        name: currentHero.name!,
+        profession: currentHero.profession!,
+        description: currentHero.description!,
+        key_takeaways: currentHero.key_takeaways!,
+        inspiration: currentHero.inspiration!,
+        image_url: currentHero.image_url
+      });
 
-    setHeroes([...heroes, newHero]);
-    setCurrentHero({
-      name: '',
-      profession: '',
-      description: '',
-      keyTakeaways: ['', '', ''],
-      inspiration: '',
-      imageUrl: ''
-    });
-    setActiveModal(null);
-    setErrors({});
+      setHeroes(prev => [newHero, ...prev]);
+      setCurrentHero({
+        name: '',
+        profession: '',
+        description: '',
+        key_takeaways: ['', '', ''],
+        inspiration: '',
+        image_url: ''
+      });
+      setActiveModal(null);
+      setErrors({});
+    } catch (error) {
+      console.error('Error saving hero:', error);
+      setErrors({ general: 'Failed to save hero. Please try again.' });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const deleteBook = (id: string) => {
-    setBooks(books.filter(book => book.id !== id));
+  const deleteBook = async (id: string) => {
+    try {
+      await booksAPI.delete(id);
+      setBooks(prev => prev.filter(book => book.id !== id));
+    } catch (error) {
+      console.error('Error deleting book:', error);
+    }
   };
 
-  const deleteHero = (id: string) => {
-    setHeroes(heroes.filter(hero => hero.id !== id));
+  const deleteHero = async (id: string) => {
+    try {
+      await heroesAPI.delete(id);
+      setHeroes(prev => prev.filter(hero => hero.id !== id));
+    } catch (error) {
+      console.error('Error deleting hero:', error);
+    }
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -238,7 +266,7 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const imageUrl = e.target?.result as string;
-        setCurrentHero(prev => ({ ...prev, imageUrl }));
+        setCurrentHero(prev => ({ ...prev, image_url: imageUrl }));
       };
       reader.readAsDataURL(file);
     }
@@ -313,6 +341,23 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
           </button>
         </div>
 
+        {/* Error Display */}
+        {errors.general && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 rounded-xl border flex items-center"
+            style={{
+              background: 'rgba(239, 68, 68, 0.1)',
+              borderColor: '#ef4444',
+              color: '#ef4444'
+            }}
+          >
+            <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+            <span className="text-sm">{errors.general}</span>
+          </motion.div>
+        )}
+
         <div className="space-y-6">
           {/* Book Title */}
           <div>
@@ -364,24 +409,24 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <select
-                  value={currentBook.startDate?.split('/')[0] || ''}
+                  value={currentBook.start_date?.split('/')[0] || ''}
                   onChange={(e) => {
                     const month = e.target.value;
-                    const year = currentBook.startDate?.split('/')[1] || '';
+                    const year = currentBook.start_date?.split('/')[1] || '';
                     const newStartDate = month && year ? `${month}/${year}` : month ? `${month}/` : '';
-                    setCurrentBook(prev => ({ ...prev, startDate: newStartDate }));
+                    setCurrentBook(prev => ({ ...prev, start_date: newStartDate }));
                     
                     // Clear finish date error if dates become valid
-                    if (errors.finishDate && currentBook.finishDate && newStartDate) {
-                      const comparison = compareDates(newStartDate, currentBook.finishDate);
+                    if (errors.finish_date && currentBook.finish_date && newStartDate) {
+                      const comparison = compareDates(newStartDate, currentBook.finish_date);
                       if (comparison <= 0) {
-                        setErrors(prev => ({ ...prev, finishDate: '' }));
+                        setErrors(prev => ({ ...prev, finish_date: '' }));
                       }
                     }
                   }}
                   className="px-3 py-2 rounded-lg border-2 text-sm focus:outline-none"
                   style={{
-                    borderColor: errors.startDate ? '#ef4444' : theme.colors.primary + '20',
+                    borderColor: errors.start_date ? '#ef4444' : theme.colors.primary + '20',
                     backgroundColor: 'rgba(255,255,255,0.9)'
                   }}
                 >
@@ -393,24 +438,24 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
                   ))}
                 </select>
                 <select
-                  value={currentBook.startDate?.split('/')[1] || ''}
+                  value={currentBook.start_date?.split('/')[1] || ''}
                   onChange={(e) => {
                     const year = e.target.value;
-                    const month = currentBook.startDate?.split('/')[0] || '';
+                    const month = currentBook.start_date?.split('/')[0] || '';
                     const newStartDate = month && year ? `${month}/${year}` : year ? `/${year}` : '';
-                    setCurrentBook(prev => ({ ...prev, startDate: newStartDate }));
+                    setCurrentBook(prev => ({ ...prev, start_date: newStartDate }));
                     
                     // Clear finish date error if dates become valid
-                    if (errors.finishDate && currentBook.finishDate && newStartDate) {
-                      const comparison = compareDates(newStartDate, currentBook.finishDate);
+                    if (errors.finish_date && currentBook.finish_date && newStartDate) {
+                      const comparison = compareDates(newStartDate, currentBook.finish_date);
                       if (comparison <= 0) {
-                        setErrors(prev => ({ ...prev, finishDate: '' }));
+                        setErrors(prev => ({ ...prev, finish_date: '' }));
                       }
                     }
                   }}
                   className="px-3 py-2 rounded-lg border-2 text-sm focus:outline-none"
                   style={{
-                    borderColor: errors.startDate ? '#ef4444' : theme.colors.primary + '20',
+                    borderColor: errors.start_date ? '#ef4444' : theme.colors.primary + '20',
                     backgroundColor: 'rgba(255,255,255,0.9)'
                   }}
                 >
@@ -422,8 +467,8 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
                   ))}
                 </select>
               </div>
-              {errors.startDate && (
-                <p className="text-red-500 text-sm mt-1">{errors.startDate}</p>
+              {errors.start_date && (
+                <p className="text-red-500 text-sm mt-1">{errors.start_date}</p>
               )}
             </div>
 
@@ -433,26 +478,26 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <select
-                  value={currentBook.finishDate?.split('/')[0] || ''}
+                  value={currentBook.finish_date?.split('/')[0] || ''}
                   onChange={(e) => {
                     const month = e.target.value;
-                    const year = currentBook.finishDate?.split('/')[1] || '';
+                    const year = currentBook.finish_date?.split('/')[1] || '';
                     const newFinishDate = month && year ? `${month}/${year}` : month ? `${month}/` : '';
-                    setCurrentBook(prev => ({ ...prev, finishDate: newFinishDate }));
+                    setCurrentBook(prev => ({ ...prev, finish_date: newFinishDate }));
                     
                     // Validate against start date
-                    if (currentBook.startDate && newFinishDate) {
-                      const comparison = compareDates(currentBook.startDate, newFinishDate);
+                    if (currentBook.start_date && newFinishDate) {
+                      const comparison = compareDates(currentBook.start_date, newFinishDate);
                       if (comparison > 0) {
-                        setErrors(prev => ({ ...prev, finishDate: 'Finish date cannot be earlier than start date' }));
+                        setErrors(prev => ({ ...prev, finish_date: 'Finish date cannot be earlier than start date' }));
                       } else {
-                        setErrors(prev => ({ ...prev, finishDate: '' }));
+                        setErrors(prev => ({ ...prev, finish_date: '' }));
                       }
                     }
                   }}
                   className="px-3 py-2 rounded-lg border-2 text-sm focus:outline-none"
                   style={{
-                    borderColor: errors.finishDate ? '#ef4444' : theme.colors.primary + '20',
+                    borderColor: errors.finish_date ? '#ef4444' : theme.colors.primary + '20',
                     backgroundColor: 'rgba(255,255,255,0.9)'
                   }}
                 >
@@ -464,26 +509,26 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
                   ))}
                 </select>
                 <select
-                  value={currentBook.finishDate?.split('/')[1] || ''}
+                  value={currentBook.finish_date?.split('/')[1] || ''}
                   onChange={(e) => {
                     const year = e.target.value;
-                    const month = currentBook.finishDate?.split('/')[0] || '';
+                    const month = currentBook.finish_date?.split('/')[0] || '';
                     const newFinishDate = month && year ? `${month}/${year}` : year ? `/${year}` : '';
-                    setCurrentBook(prev => ({ ...prev, finishDate: newFinishDate }));
+                    setCurrentBook(prev => ({ ...prev, finish_date: newFinishDate }));
                     
                     // Validate against start date
-                    if (currentBook.startDate && newFinishDate) {
-                      const comparison = compareDates(currentBook.startDate, newFinishDate);
+                    if (currentBook.start_date && newFinishDate) {
+                      const comparison = compareDates(currentBook.start_date, newFinishDate);
                       if (comparison > 0) {
-                        setErrors(prev => ({ ...prev, finishDate: 'Finish date cannot be earlier than start date' }));
+                        setErrors(prev => ({ ...prev, finish_date: 'Finish date cannot be earlier than start date' }));
                       } else {
-                        setErrors(prev => ({ ...prev, finishDate: '' }));
+                        setErrors(prev => ({ ...prev, finish_date: '' }));
                       }
                     }
                   }}
                   className="px-3 py-2 rounded-lg border-2 text-sm focus:outline-none"
                   style={{
-                    borderColor: errors.finishDate ? '#ef4444' : theme.colors.primary + '20',
+                    borderColor: errors.finish_date ? '#ef4444' : theme.colors.primary + '20',
                     backgroundColor: 'rgba(255,255,255,0.9)'
                   }}
                 >
@@ -495,8 +540,8 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
                   ))}
                 </select>
               </div>
-              {errors.finishDate && (
-                <p className="text-red-500 text-sm mt-1">{errors.finishDate}</p>
+              {errors.finish_date && (
+                <p className="text-red-500 text-sm mt-1">{errors.finish_date}</p>
               )}
             </div>
           </div>
@@ -527,15 +572,15 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
                   </div>
                   <input
                     type="text"
-                    value={currentBook.keyTakeaways?.[index] || ''}
+                    value={currentBook.key_takeaways?.[index] || ''}
                     onChange={(e) => {
-                      const newTakeaways = [...(currentBook.keyTakeaways || ['', '', ''])];
+                      const newTakeaways = [...(currentBook.key_takeaways || ['', '', ''])];
                       newTakeaways[index] = e.target.value;
-                      setCurrentBook(prev => ({ ...prev, keyTakeaways: newTakeaways }));
+                      setCurrentBook(prev => ({ ...prev, key_takeaways: newTakeaways }));
                     }}
                     className="w-full pl-12 pr-4 py-3 rounded-xl border-2 transition-all duration-300 focus:outline-none"
                     style={{
-                      borderColor: errors.keyTakeaways ? '#ef4444' : theme.colors.primary + '20',
+                      borderColor: errors.key_takeaways ? '#ef4444' : theme.colors.primary + '20',
                       backgroundColor: 'rgba(255,255,255,0.9)'
                     }}
                     placeholder={`Key takeaway ${index + 1}`}
@@ -543,8 +588,8 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
                 </div>
               ))}
             </div>
-            {errors.keyTakeaways && (
-              <p className="text-red-500 text-sm mt-1">{errors.keyTakeaways}</p>
+            {errors.key_takeaways && (
+              <p className="text-red-500 text-sm mt-1">{errors.key_takeaways}</p>
             )}
           </div>
 
@@ -570,14 +615,24 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={saveBook}
-            className="w-full py-4 rounded-xl font-semibold text-white transition-all duration-300 shadow-lg"
+            disabled={saving}
+            className="w-full py-4 rounded-xl font-semibold text-white transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ 
               background: theme.gradients.primary,
               boxShadow: `0 4px 20px ${theme.colors.primary}40`
             }}
           >
-            <Save className="w-5 h-5 inline mr-2" />
-            Save Book
+            {saving ? (
+              <span className="flex items-center justify-center">
+                <Loader className="w-5 h-5 animate-spin mr-2" />
+                Saving Book...
+              </span>
+            ) : (
+              <>
+                <Save className="w-5 h-5 inline mr-2" />
+                Save Book
+              </>
+            )}
           </motion.button>
         </div>
       </motion.div>
@@ -617,6 +672,23 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
           </button>
         </div>
 
+        {/* Error Display */}
+        {errors.general && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 rounded-xl border flex items-center"
+            style={{
+              background: 'rgba(239, 68, 68, 0.1)',
+              borderColor: '#ef4444',
+              color: '#ef4444'
+            }}
+          >
+            <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+            <span className="text-sm">{errors.general}</span>
+          </motion.div>
+        )}
+
         <div className="space-y-6">
           {/* Profile Picture */}
           <div className="text-center">
@@ -625,9 +697,9 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
             </label>
             <div className="flex flex-col items-center space-y-4">
               <div className="relative">
-                {currentHero.imageUrl ? (
+                {currentHero.image_url ? (
                   <img
-                    src={currentHero.imageUrl}
+                    src={currentHero.image_url}
                     alt="Hero profile"
                     className="w-24 h-24 rounded-full object-cover border-4 shadow-lg"
                     style={{ borderColor: theme.colors.primary }}
@@ -738,15 +810,15 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
                   </div>
                   <input
                     type="text"
-                    value={currentHero.keyTakeaways?.[index] || ''}
+                    value={currentHero.key_takeaways?.[index] || ''}
                     onChange={(e) => {
-                      const newTakeaways = [...(currentHero.keyTakeaways || ['', '', ''])];
+                      const newTakeaways = [...(currentHero.key_takeaways || ['', '', ''])];
                       newTakeaways[index] = e.target.value;
-                      setCurrentHero(prev => ({ ...prev, keyTakeaways: newTakeaways }));
+                      setCurrentHero(prev => ({ ...prev, key_takeaways: newTakeaways }));
                     }}
                     className="w-full pl-12 pr-4 py-3 rounded-xl border-2 transition-all duration-300 focus:outline-none"
                     style={{
-                      borderColor: errors.keyTakeaways ? '#ef4444' : theme.colors.primary + '20',
+                      borderColor: errors.key_takeaways ? '#ef4444' : theme.colors.primary + '20',
                       backgroundColor: 'rgba(255,255,255,0.9)'
                     }}
                     placeholder={`Key lesson ${index + 1}`}
@@ -754,8 +826,8 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
                 </div>
               ))}
             </div>
-            {errors.keyTakeaways && (
-              <p className="text-red-500 text-sm mt-1">{errors.keyTakeaways}</p>
+            {errors.key_takeaways && (
+              <p className="text-red-500 text-sm mt-1">{errors.key_takeaways}</p>
             )}
           </div>
 
@@ -784,19 +856,40 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={saveHero}
-            className="w-full py-4 rounded-xl font-semibold text-white transition-all duration-300 shadow-lg"
+            disabled={saving}
+            className="w-full py-4 rounded-xl font-semibold text-white transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ 
               background: theme.gradients.primary,
               boxShadow: `0 4px 20px ${theme.colors.primary}40`
             }}
           >
-            <Save className="w-5 h-5 inline mr-2" />
-            Save Hero/Mentor
+            {saving ? (
+              <span className="flex items-center justify-center">
+                <Loader className="w-5 h-5 animate-spin mr-2" />
+                Saving Hero...
+              </span>
+            ) : (
+              <>
+                <Save className="w-5 h-5 inline mr-2" />
+                Save Hero/Mentor
+              </>
+            )}
           </motion.button>
         </div>
       </motion.div>
     </motion.div>
   );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="w-12 h-12 animate-spin mx-auto mb-4" style={{ color: theme.colors.primary }} />
+          <p className="text-gray-600">Loading your library...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen p-8 relative overflow-hidden">
@@ -1000,7 +1093,7 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
                           <div className="flex items-center space-x-4 text-sm text-gray-500 mb-3">
                             <span className="flex items-center">
                               <Calendar className="w-4 h-4 mr-1" />
-                              {book.startDate} - {book.finishDate}
+                              {book.start_date} - {book.finish_date}
                             </span>
                           </div>
                           {renderStars(book.rating)}
@@ -1018,7 +1111,7 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
                           <Lightbulb className="w-4 h-4 mr-2" style={{ color: theme.colors.primary }} />
                           Key Takeaways
                         </h4>
-                        {book.keyTakeaways.map((takeaway, idx) => (
+                        {book.key_takeaways.map((takeaway, idx) => (
                           <div key={idx} className="flex items-start space-x-3">
                             <div 
                               className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white mt-0.5 flex-shrink-0"
@@ -1089,9 +1182,9 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex-1">
                           <div className="flex items-center mb-3">
-                            {hero.imageUrl ? (
+                            {hero.image_url ? (
                               <img
-                                src={hero.imageUrl}
+                                src={hero.image_url}
                                 alt={hero.name}
                                 className="w-16 h-16 rounded-full object-cover border-4 mr-4 shadow-lg"
                                 style={{ borderColor: theme.colors.primary }}
@@ -1126,7 +1219,7 @@ export const MyLibrary: React.FC<MyLibraryProps> = ({ theme }) => {
                             Key Lessons
                           </h4>
                           <div className="space-y-2">
-                            {hero.keyTakeaways.map((takeaway, idx) => (
+                            {hero.key_takeaways.map((takeaway, idx) => (
                               <div key={idx} className="flex items-start space-x-3">
                                 <div 
                                   className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white mt-0.5 flex-shrink-0"

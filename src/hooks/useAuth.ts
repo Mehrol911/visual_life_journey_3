@@ -39,8 +39,8 @@ export const useAuth = () => {
     return {
       id: supabaseUser.id,
       email: supabaseUser.email || '',
-      full_name: metadata.full_name || '',
-      birth_date: metadata.birth_date || '',
+      full_name: metadata.full_name || metadata.name || '',
+      birth_date: metadata.birth_date || metadata.birthDate || '',
       profession: {
         id: metadata.profession_id || 'doctor',
         name: metadata.profession_name || 'Doctor',
@@ -160,6 +160,10 @@ export const useAuth = () => {
       if (error) {
         setError(error.message)
         return { success: false, error: error.message }
+      }
+
+      if (data.user) {
+        setUser(transformSupabaseUser(data.user))
       }
 
       return { success: true, data }

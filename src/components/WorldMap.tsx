@@ -1,26 +1,23 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Plus, X, Calendar, Sparkles, Navigation, Globe, Plane, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { MapPin, Plus, X, Calendar, Sparkles, Navigation, Globe, Plane, ChevronDown, Loader, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ProfessionTheme } from '../types';
+import { travelVisitsAPI, TravelVisit } from '../lib/database';
 import { WORLD_CITIES, getCitiesByCountry, getAllCountries, findCityCoordinates } from '../data/worldCities';
 import { InteractiveTravelMap } from './InteractiveTravelMap';
 
-interface Visit {
-  id: string;
-  city: string;
-  country: string;
-  date: string;
-  lat?: number;
-  lng?: number;
-}
-
 interface WorldMapProps {
   theme: ProfessionTheme;
-  onComplete?: (visits: Visit[]) => void;
+  onComplete?: (visits: TravelVisit[]) => void;
 }
 
-export const WorldMap: React.FC<WorldMapProps> = ({ theme, onComplete }) => {
-  const [visits, setVisits] = useState<Visit[]>([]);
+type ViewMode = 'map' | 'timeline';
+
+export const WorldMap: React.FC<WorldMapProps> = ({ 
+  theme, 
+  onComplete 
+}) => {
+  const [visits, setVisits] = useState<TravelVisit[]>([]);
   const [currentVisit, setCurrentVisit] = useState({ 
     city: '', 
     country: '', 
@@ -34,6 +31,9 @@ export const WorldMap: React.FC<WorldMapProps> = ({ theme, onComplete }) => {
   const [dateError, setDateError] = useState('');
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
 
   const countries = getAllCountries();
   const currentYear = new Date().getFullYear();
@@ -55,6 +55,23 @@ export const WorldMap: React.FC<WorldMapProps> = ({ theme, onComplete }) => {
     { value: '11', label: 'November' },
     { value: '12', label: 'December' }
   ];
+
+  // Load visits on component mount
+  useEffect(() => {
+    loadVisits();
+  }, []);
+
+  const loadVisits = async () => {
+    try {
+      setLoading(true);
+      const data = await travelVisitsAPI.getAll();
+      setVisits(data);
+    } catch (error) {
+      console.error('Error loading visits:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Update available cities when country changes
   useEffect(() => {
@@ -100,7 +117,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({ theme, onComplete }) => {
     return true;
   };
 
-  const addVisit = () => {
+  const addVisit = async () => {
     if (!currentVisit.city || !currentVisit.country) {
       setDateError('Please select both country and city');
       return;
@@ -110,25 +127,38 @@ export const WorldMap: React.FC<WorldMapProps> = ({ theme, onComplete }) => {
       return;
     }
 
-    const coordinates = findCityCoordinates(currentVisit.city, currentVisit.country);
-    const dateString = `${currentVisit.month}/${currentVisit.year}`;
+    setSaving(true);
+    try {
+      const coordinates = findCityCoordinates(currentVisit.city, currentVisit.country);
+      const dateString = `${currentVisit.month}/${currentVisit.year}`;
 
-    const newVisit: Visit = {
-      id: Date.now().toString(),
-      city: currentVisit.city,
-      country: currentVisit.country,
-      date: dateString,
-      lat: coordinates?.lat,
-      lng: coordinates?.lng
-    };
-    
-    setVisits([...visits, newVisit]);
-    setCurrentVisit({ city: '', country: '', date: '', month: '', year: '' });
-    setDateError('');
+      const newVisit = await travelVisitsAPI.create({
+        city: currentVisit.city,
+        country: currentVisit.country,
+        visit_date: dateString,
+        latitude: coordinates?.lat,
+        longitude: coordinates?.lng,
+        photos: []
+      });
+      
+      setVisits([...visits, newVisit]);
+      setCurrentVisit({ city: '', country: '', date: '', month: '', year: '' });
+      setDateError('');
+    } catch (error) {
+      console.error('Error saving visit:', error);
+      setErrors({ general: 'Failed to save visit. Please try again.' });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const removeVisit = (id: string) => {
-    setVisits(visits.filter(v => v.id !== id));
+  const removeVisit = async (id: string) => {
+    try {
+      await travelVisitsAPI.delete(id);
+      setVisits(visits.filter(v => v.id !== id));
+    } catch (error) {
+      console.error('Error deleting visit:', error);
+    }
   };
 
   const visualizeJourney = () => {
@@ -144,9 +174,9 @@ export const WorldMap: React.FC<WorldMapProps> = ({ theme, onComplete }) => {
     cities: visits.map(visit => ({
       city: visit.city,
       country: visit.country,
-      date: visit.date,
-      coordinates: [visit.lng || 0, visit.lat || 0] as [number, number],
-      description: `Visited ${visit.city} in ${visit.date}`
+      date: visit.visit_date,
+      coordinates: [visit.longitude || 0, visit.latitude || 0] as [number, number],
+      description: `Visited ${visit.city} in ${visit.visit_date}`
     })),
     countries: [...new Set(visits.map(visit => {
       // Map country names to ISO codes (simplified mapping)
@@ -201,6 +231,17 @@ export const WorldMap: React.FC<WorldMapProps> = ({ theme, onComplete }) => {
           setShowForm(true);
         }}
       />
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="w-12 h-12 animate-spin mx-auto mb-4" style={{ color: theme.colors.primary }} />
+          <p className="text-gray-600">Loading your travel map...</p>
+        </div>
+      </div>
     );
   }
 
@@ -265,6 +306,23 @@ export const WorldMap: React.FC<WorldMapProps> = ({ theme, onComplete }) => {
                 boxShadow: `0 20px 40px rgba(0,0,0,0.1), 0 0 20px ${theme.colors.primary}10`
               }}
             >
+              {/* Error Display */}
+              {errors.general && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-6 p-4 rounded-xl border flex items-center"
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    borderColor: '#ef4444',
+                    color: '#ef4444'
+                  }}
+                >
+                  <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+                  <span className="text-sm">{errors.general}</span>
+                </motion.div>
+              )}
+
               {/* Add visit form */}
               <div className="space-y-6 mb-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -426,7 +484,8 @@ export const WorldMap: React.FC<WorldMapProps> = ({ theme, onComplete }) => {
                       animate={{ opacity: 1, y: 0 }}
                       className="text-sm mt-2 flex items-center text-red-600"
                     >
-                      ⚠️ {dateError}
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {dateError}
                     </motion.p>
                   )}
                 </div>
@@ -435,14 +494,24 @@ export const WorldMap: React.FC<WorldMapProps> = ({ theme, onComplete }) => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={addVisit}
-                  className="w-full py-4 rounded-xl font-semibold text-white transition-all duration-300 shadow-lg"
+                  disabled={saving}
+                  className="w-full py-4 rounded-xl font-semibold text-white transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ 
                     background: theme.gradients.primary,
                     boxShadow: `0 4px 20px ${theme.colors.primary}40`
                   }}
                 >
-                  <Plus className="w-5 h-5 inline mr-2" />
-                  Add Visit
+                  {saving ? (
+                    <span className="flex items-center justify-center">
+                      <Loader className="w-5 h-5 animate-spin mr-2" />
+                      Adding Visit...
+                    </span>
+                  ) : (
+                    <>
+                      <Plus className="w-5 h-5 inline mr-2" />
+                      Add Visit
+                    </>
+                  )}
                 </motion.button>
               </div>
               
@@ -478,7 +547,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({ theme, onComplete }) => {
                               <p className="text-gray-800 font-semibold">
                                 {visit.city}, {visit.country}
                               </p>
-                              <p className="text-gray-600 text-sm">{visit.date}</p>
+                              <p className="text-gray-600 text-sm">{visit.visit_date}</p>
                             </div>
                           </div>
                           <button
@@ -582,7 +651,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({ theme, onComplete }) => {
                       </div>
                       <p className="font-semibold text-gray-800">{visit.city}</p>
                       <p className="text-sm text-gray-600">{visit.country}</p>
-                      <p className="text-xs text-gray-500 mt-1">{visit.date}</p>
+                      <p className="text-xs text-gray-500 mt-1">{visit.visit_date}</p>
                     </motion.div>
                   ))}
                 </div>
