@@ -94,6 +94,54 @@ export interface UserPreferences {
   updated_at: string
 }
 
+export interface ProfileUpdate {
+  id: string
+  user_id: string
+  update_type: string
+  old_value?: Record<string, any>
+  new_value?: Record<string, any>
+  created_at: string
+}
+
+// Profile Updates API
+export const profileUpdatesAPI = {
+  async getUpdateCount(): Promise<number> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('User not authenticated')
+
+    const { data, error } = await supabase.rpc('get_user_profile_update_count', {
+      user_uuid: user.id
+    })
+    
+    if (error) throw error
+    return data || 0
+  },
+
+  async getUpdateHistory(): Promise<ProfileUpdate[]> {
+    const { data, error } = await supabase
+      .from('profile_updates')
+      .select('*')
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async logUpdate(updateType: string, oldValue?: any, newValue?: any): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('User not authenticated')
+
+    const { error } = await supabase.rpc('log_profile_update', {
+      user_uuid: user.id,
+      update_type_param: updateType,
+      old_value_param: oldValue || null,
+      new_value_param: newValue || null
+    })
+    
+    if (error) throw error
+  }
+}
+
 // Daily Reflections API
 export const dailyReflectionsAPI = {
   async getAll(): Promise<DailyReflection[]> {

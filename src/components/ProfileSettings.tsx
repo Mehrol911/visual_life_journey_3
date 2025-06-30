@@ -11,12 +11,15 @@ import {
   ChevronDown,
   Check,
   AlertCircle,
-  Loader
+  Loader,
+  Shield,
+  Clock,
+  AlertTriangle
 } from 'lucide-react';
 import { ProfessionTheme, User as UserType } from '../types';
 import { PROFESSIONS } from '../data/professions';
 import { useAuth } from '../hooks/useAuth';
-import { userPreferencesAPI } from '../lib/database';
+import { userPreferencesAPI, profileUpdatesAPI } from '../lib/database';
 
 interface ProfileSettingsProps {
   user: UserType;
@@ -40,6 +43,27 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showProfessionDropdown, setShowProfessionDropdown] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [updateCount, setUpdateCount] = useState(0);
+  const [loadingUpdateCount, setLoadingUpdateCount] = useState(true);
+
+  const MAX_UPDATES = 3;
+
+  // Load update count on component mount
+  useEffect(() => {
+    loadUpdateCount();
+  }, []);
+
+  const loadUpdateCount = async () => {
+    try {
+      setLoadingUpdateCount(true);
+      const count = await profileUpdatesAPI.getUpdateCount();
+      setUpdateCount(count);
+    } catch (error) {
+      console.error('Error loading update count:', error);
+    } finally {
+      setLoadingUpdateCount(false);
+    }
+  };
 
   // Check for changes
   useEffect(() => {
@@ -82,9 +106,28 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   const handleSave = async () => {
     if (!validateForm() || !hasChanges) return;
 
+    // Check update limit
+    if (updateCount >= MAX_UPDATES) {
+      setErrors({ general: `You have reached the maximum limit of ${MAX_UPDATES} profile updates.` });
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
+      // Prepare old values for logging
+      const oldValues = {
+        fullName: user.full_name,
+        birthDate: user.birth_date,
+        profession: user.profession.theme.name
+      };
+
+      const newValues = {
+        fullName: formData.fullName.trim(),
+        birthDate: formData.birthDate,
+        profession: formData.profession.name
+      };
+
       // Update user profile in Supabase Auth
       const result = await updateProfile({
         fullName: formData.fullName.trim(),
@@ -93,6 +136,9 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
       });
 
       if (result.success) {
+        // Log the profile update
+        await profileUpdatesAPI.logUpdate('full_profile', oldValues, newValues);
+
         // Create updated user object
         const updatedUser: UserType = {
           ...user,
@@ -113,6 +159,9 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
 
         onProfileUpdate(updatedUser);
         setHasChanges(false);
+        
+        // Reload update count
+        await loadUpdateCount();
       } else {
         setErrors({ general: result.error || 'Failed to update profile' });
       }
@@ -130,6 +179,8 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   };
 
   const currentTheme = formData.profession;
+  const remainingUpdates = MAX_UPDATES - updateCount;
+  const canUpdate = updateCount < MAX_UPDATES;
 
   return (
     <div className="min-h-screen p-8 relative overflow-hidden">
@@ -190,6 +241,103 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
           </div>
         </motion.div>
 
+        {/* Update Limit Warning */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 p-6 rounded-2xl border shadow-lg"
+          style={{
+            background: updateCount >= MAX_UPDATES 
+              ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)'
+              : remainingUpdates <= 1
+              ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.05) 100%)'
+              : 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)',
+            borderColor: updateCount >= MAX_UPDATES 
+              ? '#ef4444' 
+              : remainingUpdates <= 1 
+              ? '#f59e0b' 
+              : currentTheme.colors.primary + '40'
+          }}
+        >
+          <div className="flex items-start space-x-4">
+            <div className="flex-shrink-0">
+              {updateCount >= MAX_UPDATES ? (
+                <AlertTriangle className="w-6 h-6 text-red-500" />
+              ) : remainingUpdates <= 1 ? (
+                <AlertCircle className="w-6 h-6 text-amber-500" />
+              ) : (
+                <Shield className="w-6 h-6" style={{ color: currentTheme.colors.primary }} />
+              )}
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center">
+                <Clock className="w-5 h-5 mr-2" />
+                Profile Update Limit
+              </h3>
+              {loadingUpdateCount ? (
+                <div className="flex items-center text-gray-600">
+                  <Loader className="w-4 h-4 animate-spin mr-2" />
+                  <span>Loading update history...</span>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {updateCount >= MAX_UPDATES ? (
+                    <div>
+                      <p className="text-red-700 font-semibold mb-2">
+                        ⚠️ Maximum Updates Reached
+                      </p>
+                      <p className="text-red-600 text-sm leading-relaxed">
+                        You have used all {MAX_UPDATES} allowed profile updates. This limit helps maintain data integrity and prevents frequent changes to core profile information. If you need to make additional changes, please contact support.
+                      </p>
+                    </div>
+                  ) : remainingUpdates <= 1 ? (
+                    <div>
+                      <p className="text-amber-700 font-semibold mb-2">
+                        ⚠️ Final Update Available
+                      </p>
+                      <p className="text-amber-600 text-sm leading-relaxed">
+                        You have <strong>{remainingUpdates}</strong> profile update remaining. Please make sure all your information is correct before saving, as you won't be able to make further changes after this.
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-gray-700 font-semibold mb-2">
+                        Updates Available: {remainingUpdates} of {MAX_UPDATES}
+                      </p>
+                      <p className="text-gray-600 text-sm leading-relaxed">
+                        You can update your profile information {remainingUpdates} more time{remainingUpdates !== 1 ? 's' : ''}. This limit ensures data stability and prevents frequent changes to your core profile details.
+                      </p>
+                    </div>
+                  )}
+                  
+                  <div className="mt-3 bg-white/50 rounded-lg p-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-gray-700">Updates Used</span>
+                      <span className="text-sm font-bold text-gray-800">{updateCount} / {MAX_UPDATES}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <motion.div
+                        className="h-2 rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${(updateCount / MAX_UPDATES) * 100}%`,
+                          background: updateCount >= MAX_UPDATES 
+                            ? 'linear-gradient(90deg, #ef4444, #dc2626)' 
+                            : remainingUpdates <= 1
+                            ? 'linear-gradient(90deg, #f59e0b, #d97706)'
+                            : currentTheme.gradients.primary
+                        }}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(updateCount / MAX_UPDATES) * 100}%` }}
+                        transition={{ duration: 1, delay: 0.5 }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.div>
+
         {/* Error Display */}
         {errors.general && (
           <motion.div
@@ -242,7 +390,8 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
                         setErrors(prev => ({ ...prev, fullName: '' }));
                       }
                     }}
-                    className="w-full px-4 py-3 rounded-xl border-2 transition-all duration-300 focus:outline-none"
+                    disabled={!canUpdate}
+                    className="w-full px-4 py-3 rounded-xl border-2 transition-all duration-300 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{
                       backgroundColor: 'rgba(255,255,255,0.9)',
                       borderColor: errors.fullName ? '#ef4444' : currentTheme.colors.primary + '20'
@@ -276,9 +425,10 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
                         setErrors(prev => ({ ...prev, birthDate: '' }));
                       }
                     }}
+                    disabled={!canUpdate}
                     min="1900-01-01"
                     max={new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-3 rounded-xl border-2 transition-all duration-300 focus:outline-none"
+                    className="w-full px-4 py-3 rounded-xl border-2 transition-all duration-300 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{
                       backgroundColor: 'rgba(255,255,255,0.9)',
                       borderColor: errors.birthDate ? '#ef4444' : currentTheme.colors.primary + '20'
@@ -362,8 +512,9 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
                   <div className="relative">
                     <button
                       type="button"
-                      onClick={() => setShowProfessionDropdown(!showProfessionDropdown)}
-                      className="w-full px-4 py-4 rounded-xl border-2 text-left flex items-center justify-between transition-all duration-300 focus:outline-none"
+                      onClick={() => canUpdate && setShowProfessionDropdown(!showProfessionDropdown)}
+                      disabled={!canUpdate}
+                      className="w-full px-4 py-4 rounded-xl border-2 text-left flex items-center justify-between transition-all duration-300 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                       style={{
                         backgroundColor: 'rgba(255,255,255,0.9)',
                         borderColor: currentTheme.colors.primary + '40'
@@ -382,7 +533,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
                     </button>
                     
                     <AnimatePresence>
-                      {showProfessionDropdown && (
+                      {showProfessionDropdown && canUpdate && (
                         <motion.div
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
@@ -472,16 +623,16 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
         >
           <motion.button
             whileHover={{ 
-              scale: hasChanges ? 1.05 : 1,
-              boxShadow: hasChanges ? `0 0 30px ${currentTheme.colors.primary}50` : 'none'
+              scale: (hasChanges && canUpdate) ? 1.05 : 1,
+              boxShadow: (hasChanges && canUpdate) ? `0 0 30px ${currentTheme.colors.primary}50` : 'none'
             }}
-            whileTap={{ scale: hasChanges ? 0.95 : 1 }}
+            whileTap={{ scale: (hasChanges && canUpdate) ? 0.95 : 1 }}
             onClick={handleSave}
-            disabled={!hasChanges || isSubmitting}
+            disabled={!hasChanges || isSubmitting || !canUpdate}
             className="px-12 py-4 rounded-full text-white font-semibold text-lg relative overflow-hidden group shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
             style={{ 
-              background: hasChanges ? currentTheme.gradients.primary : '#9ca3af',
-              boxShadow: hasChanges ? `0 4px 20px ${currentTheme.colors.primary}40` : 'none'
+              background: (hasChanges && canUpdate) ? currentTheme.gradients.primary : '#9ca3af',
+              boxShadow: (hasChanges && canUpdate) ? `0 4px 20px ${currentTheme.colors.primary}40` : 'none'
             }}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -490,6 +641,11 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
                 <>
                   <Loader className="w-5 h-5 animate-spin mr-3" />
                   Saving Changes...
+                </>
+              ) : !canUpdate ? (
+                <>
+                  <AlertTriangle className="w-5 h-5 mr-3" />
+                  Update Limit Reached
                 </>
               ) : (
                 <>
@@ -501,13 +657,23 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
             </span>
           </motion.button>
           
-          {hasChanges && (
+          {hasChanges && canUpdate && (
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="text-sm text-gray-600 mt-3"
             >
-              You have unsaved changes
+              You have unsaved changes • {remainingUpdates} update{remainingUpdates !== 1 ? 's' : ''} remaining
+            </motion.p>
+          )}
+
+          {!canUpdate && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-sm text-red-600 mt-3"
+            >
+              Maximum profile updates reached. Contact support for assistance.
             </motion.p>
           )}
         </motion.div>
