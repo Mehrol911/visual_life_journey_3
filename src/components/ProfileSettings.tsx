@@ -14,7 +14,8 @@ import {
   Loader,
   Shield,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  CheckCircle
 } from 'lucide-react';
 import { ProfessionTheme, User as UserType } from '../types';
 import { PROFESSIONS } from '../data/professions';
@@ -45,21 +46,28 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   const [hasChanges, setHasChanges] = useState(false);
   const [updateCount, setUpdateCount] = useState(0);
   const [loadingUpdateCount, setLoadingUpdateCount] = useState(true);
+  const [canUpdate, setCanUpdate] = useState(true);
 
   const MAX_UPDATES = 3;
 
-  // Load update count on component mount
+  // Load update count and permission on component mount
   useEffect(() => {
-    loadUpdateCount();
+    loadUpdateData();
   }, []);
 
-  const loadUpdateCount = async () => {
+  const loadUpdateData = async () => {
     try {
       setLoadingUpdateCount(true);
-      const count = await profileUpdatesAPI.getUpdateCount();
+      const [count, permission] = await Promise.all([
+        profileUpdatesAPI.getUpdateCount(),
+        profileUpdatesAPI.canUserUpdate()
+      ]);
       setUpdateCount(count);
+      setCanUpdate(permission);
     } catch (error) {
-      console.error('Error loading update count:', error);
+      console.error('Error loading update data:', error);
+      // On error, be conservative and assume they can't update
+      setCanUpdate(false);
     } finally {
       setLoadingUpdateCount(false);
     }
@@ -106,8 +114,8 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   const handleSave = async () => {
     if (!validateForm() || !hasChanges) return;
 
-    // Check update limit
-    if (updateCount >= MAX_UPDATES) {
+    // Double-check update permission
+    if (!canUpdate) {
       setErrors({ general: `You have reached the maximum limit of ${MAX_UPDATES} profile updates.` });
       return;
     }
@@ -137,7 +145,12 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
 
       if (result.success) {
         // Log the profile update
-        await profileUpdatesAPI.logUpdate('full_profile', oldValues, newValues);
+        try {
+          await profileUpdatesAPI.logUpdate('full_profile', oldValues, newValues);
+        } catch (logError) {
+          console.error('Error logging update (non-critical):', logError);
+          // Don't fail the entire operation if logging fails
+        }
 
         // Create updated user object
         const updatedUser: UserType = {
@@ -150,24 +163,32 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
           }
         };
 
-        // Also save preferences to database
-        await userPreferencesAPI.upsert({
-          theme: formData.profession.name,
-          birthDate: formData.birthDate,
-          fullName: formData.fullName.trim()
-        });
+        // Also save preferences to database (with error handling)
+        try {
+          await userPreferencesAPI.upsert({
+            theme: formData.profession.name,
+            birthDate: formData.birthDate,
+            fullName: formData.fullName.trim()
+          });
+        } catch (prefError) {
+          console.error('Error saving preferences (non-critical):', prefError);
+          // Don't fail the entire operation if preferences save fails
+        }
 
         onProfileUpdate(updatedUser);
         setHasChanges(false);
         
-        // Reload update count
-        await loadUpdateCount();
+        // Reload update data
+        await loadUpdateData();
+        
+        // Clear any errors
+        setErrors({});
       } else {
         setErrors({ general: result.error || 'Failed to update profile' });
       }
     } catch (error) {
       console.error('Failed to update profile:', error);
-      setErrors({ general: 'An unexpected error occurred' });
+      setErrors({ general: 'An unexpected error occurred while updating your profile' });
     } finally {
       setIsSubmitting(false);
     }
@@ -180,7 +201,6 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
 
   const currentTheme = formData.profession;
   const remainingUpdates = MAX_UPDATES - updateCount;
-  const canUpdate = updateCount < MAX_UPDATES;
 
   return (
     <div className="min-h-screen p-8 relative overflow-hidden">
@@ -247,12 +267,12 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
           animate={{ opacity: 1, y: 0 }}
           className="mb-6 p-6 rounded-2xl border shadow-lg"
           style={{
-            background: updateCount >= MAX_UPDATES 
+            background: !canUpdate 
               ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)'
               : remainingUpdates <= 1
               ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.05) 100%)'
               : 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)',
-            borderColor: updateCount >= MAX_UPDATES 
+            borderColor: !canUpdate 
               ? '#ef4444' 
               : remainingUpdates <= 1 
               ? '#f59e0b' 
@@ -261,7 +281,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
         >
           <div className="flex items-start space-x-4">
             <div className="flex-shrink-0">
-              {updateCount >= MAX_UPDATES ? (
+              {!canUpdate ? (
                 <AlertTriangle className="w-6 h-6 text-red-500" />
               ) : remainingUpdates <= 1 ? (
                 <AlertCircle className="w-6 h-6 text-amber-500" />
@@ -281,7 +301,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {updateCount >= MAX_UPDATES ? (
+                  {!canUpdate ? (
                     <div>
                       <p className="text-red-700 font-semibold mb-2">
                         ⚠️ Maximum Updates Reached
@@ -320,7 +340,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({
                         className="h-2 rounded-full transition-all duration-500"
                         style={{ 
                           width: `${(updateCount / MAX_UPDATES) * 100}%`,
-                          background: updateCount >= MAX_UPDATES 
+                          background: !canUpdate 
                             ? 'linear-gradient(90deg, #ef4444, #dc2626)' 
                             : remainingUpdates <= 1
                             ? 'linear-gradient(90deg, #f59e0b, #d97706)'
