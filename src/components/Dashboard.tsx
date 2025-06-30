@@ -38,7 +38,8 @@ interface DashboardProps {
 type ActiveView = 'tree' | 'reflection' | 'library' | 'heroes' | 'workouts' | 'relatives' | 'travel' | 'timeline' | 'analytics' | 'profile' | 'falling-leaves';
 
 export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, lifeStats: initialLifeStats, onLogout }) => {
-  const [activeView, setActiveView] = useState<ActiveView>('tree');
+  // Set default view to 'reflection' as requested
+  const [activeView, setActiveView] = useState<ActiveView>('reflection');
   const [user, setUser] = useState(initialUser);
   const [lifeStats, setLifeStats] = useState(initialLifeStats);
 
@@ -47,6 +48,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, lifeSta
     // Recalculate life stats with new birth date
     const newLifeStats = calculateLifeStats(updatedUser.birth_date);
     setLifeStats(newLifeStats);
+  };
+
+  const handleLogout = async () => {
+    await onLogout();
   };
 
   const navigationItems = [
@@ -82,7 +87,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, lifeSta
         return (
           <ProfileSettings 
             user={user} 
-            onBack={() => setActiveView('tree')}
+            onBack={() => setActiveView('reflection')}
             onProfileUpdate={handleProfileUpdate}
           />
         );
@@ -351,7 +356,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, lifeSta
             transition={{ delay: 1 }}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={onLogout}
+            onClick={handleLogout}
             className="w-full flex items-center space-x-3 px-4 py-3 rounded-2xl opacity-75 hover:opacity-100 transition-all duration-300 border border-white/10"
             style={{
               background: 'linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(248,250,252,0.4) 100%)',

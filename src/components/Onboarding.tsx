@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 
 interface OnboardingProps {
   onComplete: (data: { profession: ProfessionTheme; birthDate: string; name: string; email: string; password: string }) => void;
+  onSwitchToLogin?: () => void;
 }
 
 type Step = 'welcome' | 'profession' | 'details' | 'signin' | 'inspiration';
@@ -17,7 +18,7 @@ interface AuthData {
   confirmPassword: string;
 }
 
-export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
+export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSwitchToLogin }) => {
   const [currentStep, setCurrentStep] = useState<Step>('welcome');
   const [selectedProfession, setSelectedProfession] = useState<ProfessionTheme | null>(null);
   const [dateError, setDateError] = useState('');
@@ -164,140 +165,347 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     >
       {/* Animated Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        {/* Floating particles */}
-        {[...Array(20)].map((_, i) => (
+        {/* Enhanced floating particles with more variety */}
+        {[...Array(30)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute w-1 h-1 bg-blue-400 rounded-full"
-            animate={{
-              x: [0, 100, 0],
-              y: [0, -100, 0],
-              opacity: [0, 1, 0],
-              boxShadow: "0 0 30px rgba(59, 130, 246, 0.5)",
-              filter: 'brightness(1.1)',
-              duration: 3 + Math.random() * 2,
-              repeat: Infinity,
-              delay: Math.random() * 2
-            }}
-            className="relative px-12 py-4 rounded-full text-white font-semibold text-lg overflow-hidden group shadow-lg"
+            className="absolute rounded-full"
             style={{
+              width: Math.random() * 4 + 2 + 'px',
+              height: Math.random() * 4 + 2 + 'px',
+              backgroundColor: ['#60a5fa', '#a78bfa', '#f472b6', '#34d399', '#fbbf24'][Math.floor(Math.random() * 5)],
               left: Math.random() * 100 + '%',
               top: Math.random() * 100 + '%',
-              boxShadow: '0 8px 32px rgba(59, 130, 246, 0.3)'
+            }}
+            animate={{
+              x: [0, Math.random() * 200 - 100, 0],
+              y: [0, Math.random() * -200 - 50, 0],
+              opacity: [0, 1, 0],
+              scale: [0, 1, 0],
+            }}
+            transition={{
+              duration: 4 + Math.random() * 4,
+              repeat: Infinity,
+              delay: Math.random() * 3,
+              ease: "easeInOut"
             }}
           />
         ))}
         
-        {/* Gradient orbs */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-blue-500/30 to-purple-500/30 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-pink-500/30 to-orange-500/30 rounded-full blur-3xl animate-pulse delay-1000" />
+        {/* Enhanced gradient orbs with pulsing */}
+        <motion.div 
+          className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-blue-500/30 to-purple-500/30 rounded-full blur-3xl"
+          animate={{ 
+            scale: [1, 1.2, 1],
+            opacity: [0.3, 0.5, 0.3]
+          }}
+          transition={{ 
+            duration: 6, 
+            repeat: Infinity, 
+            ease: "easeInOut" 
+          }}
+        />
+        <motion.div 
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-pink-500/30 to-orange-500/30 rounded-full blur-3xl"
+          animate={{ 
+            scale: [1, 1.3, 1],
+            opacity: [0.3, 0.6, 0.3]
+          }}
+          transition={{ 
+            duration: 8, 
+            repeat: Infinity, 
+            ease: "easeInOut",
+            delay: 2
+          }}
+        />
       </div>
 
-      <div className="relative z-10 text-center max-w-4xl mx-auto px-8">
-        {/* Main heading with glow effect */}
+      <div className="relative z-10 text-center max-w-6xl mx-auto px-8">
+        {/* Enhanced main heading with spectacular animations */}
         <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
+          initial={{ scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
+          transition={{ duration: 1.2, ease: "easeOut" }}
           className="mb-12"
         >
-          <div className="flex items-center justify-center mb-6">
+          <div className="flex items-center justify-center mb-8">
+            {/* Animated plant emoji with growth effect */}
             <motion.div
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-              className="mr-4 text-6xl"
+              animate={{ 
+                scale: [1, 1.2, 1],
+                rotate: [0, 5, -5, 0]
+              }}
+              transition={{ 
+                duration: 4, 
+                repeat: Infinity, 
+                ease: "easeInOut" 
+              }}
+              className="mr-6 text-8xl"
             >
               🌱
             </motion.div>
-            <h1 className="text-7xl md:text-8xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Intentional
-            </h1>
+            
+            {/* SPECTACULAR "Intentional" text with multiple effects */}
+            <div className="relative">
+              {/* Background glow effect */}
+              <motion.div
+                className="absolute inset-0 text-8xl md:text-9xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent blur-sm"
+                animate={{
+                  opacity: [0.5, 1, 0.5],
+                }}
+                transition={{
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              >
+                Intentional
+              </motion.div>
+              
+              {/* Main text with letter-by-letter animation */}
+              <motion.h1 
+                className="relative text-8xl md:text-9xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+              >
+                {"Intentional".split("").map((letter, index) => (
+                  <motion.span
+                    key={index}
+                    initial={{ 
+                      opacity: 0, 
+                      y: 50,
+                      rotateX: -90,
+                      scale: 0.5
+                    }}
+                    animate={{ 
+                      opacity: 1, 
+                      y: 0,
+                      rotateX: 0,
+                      scale: 1
+                    }}
+                    transition={{
+                      delay: 0.8 + index * 0.1,
+                      duration: 0.8,
+                      type: "spring",
+                      stiffness: 100
+                    }}
+                    whileHover={{
+                      scale: 1.2,
+                      color: "#fbbf24",
+                      textShadow: "0 0 20px rgba(251, 191, 36, 0.8)",
+                      transition: { duration: 0.2 }
+                    }}
+                    className="inline-block cursor-pointer"
+                    style={{
+                      textShadow: "0 0 30px rgba(59, 130, 246, 0.5)"
+                    }}
+                  >
+                    {letter}
+                  </motion.span>
+                ))}
+              </motion.h1>
+              
+              {/* Sparkle effects around the text */}
+              {[...Array(8)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute w-2 h-2 bg-yellow-400 rounded-full"
+                  style={{
+                    left: Math.random() * 100 + '%',
+                    top: Math.random() * 100 + '%',
+                  }}
+                  animate={{
+                    scale: [0, 1, 0],
+                    opacity: [0, 1, 0],
+                    rotate: [0, 180, 360],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    delay: Math.random() * 2,
+                    ease: "easeInOut"
+                  }}
+                />
+              ))}
+            </div>
+            
+            {/* Animated rocket emoji with flight path */}
             <motion.div
-              animate={{ y: [0, -10, 0] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              className="ml-4 text-6xl"
+              animate={{ 
+                y: [0, -20, 0],
+                x: [0, 10, 0],
+                rotate: [0, 5, -5, 0]
+              }}
+              transition={{ 
+                duration: 3, 
+                repeat: Infinity, 
+                ease: "easeInOut",
+                delay: 1
+              }}
+              className="ml-6 text-8xl"
             >
               🚀
             </motion.div>
           </div>
         </motion.div>
 
-        {/* Glassmorphic quote card */}
+        {/* Enhanced glassmorphic quote card */}
         <motion.div
-          initial={{ y: 50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.3 }}
-          className="mb-12 p-8 rounded-3xl backdrop-blur-lg bg-white/10 border border-white/20 shadow-2xl"
+          initial={{ y: 100, opacity: 0, scale: 0.8 }}
+          animate={{ y: 0, opacity: 1, scale: 1 }}
+          transition={{ duration: 1, delay: 1.5, type: "spring" }}
+          className="mb-12 p-10 rounded-3xl backdrop-blur-xl border border-white/20 shadow-2xl relative overflow-hidden"
           style={{
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.08) 100%)',
           }}
         >
+          {/* Animated border glow */}
+          <motion.div
+            className="absolute inset-0 rounded-3xl"
+            animate={{
+              boxShadow: [
+                "0 0 20px rgba(59, 130, 246, 0.3)",
+                "0 0 40px rgba(139, 92, 246, 0.4)",
+                "0 0 20px rgba(59, 130, 246, 0.3)"
+              ]
+            }}
+            transition={{
+              duration: 4,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          />
+          
           <blockquote className="text-2xl md:text-3xl font-medium text-white italic mb-6 leading-relaxed">
             "O child of Adam! Each of your days is like a falling leaf from a tree. 
             When one day passes, it's as if a part of your soul has been taken. 
             So spend your life wisely."
           </blockquote>
           <div className="flex items-center justify-center">
-            <Star className="w-5 h-5 text-yellow-400 mr-2" />
-            <p className="text-lg text-blue-200">
+            <motion.div
+              animate={{ rotate: [0, 360] }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+            >
+              <Star className="w-6 h-6 text-yellow-400 mr-3" />
+            </motion.div>
+            <p className="text-lg text-blue-200 font-semibold">
               — Hasan al-Basri
             </p>
-            <Star className="w-5 h-5 text-yellow-400 ml-2" />
+            <motion.div
+              animate={{ rotate: [360, 0] }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+            >
+              <Star className="w-6 h-6 text-yellow-400 ml-3" />
+            </motion.div>
           </div>
         </motion.div>
 
-        {/* Description */}
+        {/* Enhanced description */}
         <motion.p
-          initial={{ y: 30, opacity: 0 }}
+          initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
-          className="text-xl text-gray-300 mb-12 leading-relaxed max-w-3xl mx-auto"
+          transition={{ duration: 1, delay: 2 }}
+          className="text-xl text-gray-300 mb-12 leading-relaxed max-w-4xl mx-auto"
         >
           Welcome to a journey of self-discovery and intentional living. 
           Visualize your life as a magnificent tree, where every day is a precious leaf. 
           Make each one count.
         </motion.p>
 
-        {/* CTA Button with glow */}
-        <motion.button
-          initial={{ y: 30, opacity: 0 }}
+        {/* Enhanced dual CTA buttons */}
+        <motion.div
+          initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.9 }}
-          whileHover={{ 
-            scale: 1.05,
-            boxShadow: "0 0 30px rgba(59, 130, 246, 0.5)"
-          }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setCurrentStep('profession')}
-          className="relative px-12 py-4 rounded-full text-white font-semibold text-lg overflow-hidden group"
-          style={{
-            background: 'linear-gradient(135deg, #3B82F6 0%, #8B5CF6 50%, #EC4899 100%)',
-          }}
+          transition={{ duration: 1, delay: 2.5 }}
+          className="flex flex-col sm:flex-row gap-6 justify-center items-center"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          <span className="relative flex items-center">
-            Begin Your Journey
-            <motion.div
-              animate={{ x: [0, 5, 0] }}
-              transition={{ duration: 1, repeat: Infinity }}
-              className="ml-2"
-            >
-              →
-            </motion.div>
-          </span>
-        </motion.button>
+          {/* Begin Your Journey Button (Sign Up) */}
+          <motion.button
+            whileHover={{ 
+              scale: 1.05,
+              boxShadow: "0 0 40px rgba(59, 130, 246, 0.6)",
+              y: -5
+            }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setCurrentStep('profession')}
+            className="relative px-12 py-5 rounded-full text-white font-bold text-xl overflow-hidden group shadow-2xl"
+            style={{
+              background: 'linear-gradient(135deg, #3B82F6 0%, #8B5CF6 50%, #EC4899 100%)',
+            }}
+          >
+            {/* Animated background effect */}
+            <motion.div 
+              className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 opacity-0 group-hover:opacity-100"
+              animate={{
+                x: ["-100%", "100%"]
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: "linear"
+              }}
+            />
+            <span className="relative flex items-center">
+              Begin Your Journey
+              <motion.span
+                animate={{ x: [0, 8, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="ml-3 text-2xl"
+              >
+                →
+              </motion.span>
+            </span>
+          </motion.button>
 
-        {/* Floating elements */}
-        <motion.div
-          animate={{ y: [-10, 10, -10] }}
-          transition={{ duration: 3, repeat: Infinity }}
-          className="absolute top-20 left-20 w-20 h-20 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full blur-xl opacity-30"
-        />
-        <motion.div
-          animate={{ y: [10, -10, 10] }}
-          transition={{ duration: 4, repeat: Infinity }}
-          className="absolute bottom-20 right-20 w-32 h-32 bg-gradient-to-r from-pink-400 to-orange-400 rounded-full blur-xl opacity-30"
-        />
+          {/* Sign In Button */}
+          <motion.button
+            whileHover={{ 
+              scale: 1.05,
+              boxShadow: "0 0 30px rgba(255, 255, 255, 0.3)",
+              y: -5
+            }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onSwitchToLogin}
+            className="relative px-12 py-5 rounded-full font-bold text-xl overflow-hidden group shadow-2xl border-2 border-white/30 backdrop-blur-lg"
+            style={{
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+              color: 'white'
+            }}
+          >
+            <span className="relative flex items-center">
+              <LogIn className="w-6 h-6 mr-3" />
+              Sign In
+            </span>
+          </motion.button>
+        </motion.div>
+
+        {/* Enhanced floating elements with more variety */}
+        {[...Array(12)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute rounded-full opacity-20"
+            style={{
+              width: Math.random() * 60 + 20 + 'px',
+              height: Math.random() * 60 + 20 + 'px',
+              background: `linear-gradient(45deg, ${['#3B82F6', '#8B5CF6', '#EC4899', '#10B981', '#F59E0B'][Math.floor(Math.random() * 5)]}, transparent)`,
+              left: Math.random() * 100 + '%',
+              top: Math.random() * 100 + '%',
+            }}
+            animate={{
+              y: [0, Math.random() * -100 - 50, 0],
+              x: [0, Math.random() * 100 - 50, 0],
+              rotate: [0, 360],
+              scale: [1, 1.5, 1],
+            }}
+            transition={{
+              duration: 8 + Math.random() * 4,
+              repeat: Infinity,
+              delay: Math.random() * 3,
+              ease: "easeInOut"
+            }}
+          />
+        ))}
       </div>
     </motion.div>
   );
@@ -379,59 +587,35 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
               >
                 Your Birth Date
               </label>
-              <div className="grid grid-cols-2 gap-4">
-                <select
-                  value={birthDate.split('-')[0] || ''}
-                  onChange={(e) => {
-                    const year = e.target.value;
-                    const currentParts = birthDate.split('-');
-                    setBirthDate(`${year}-${currentParts[1] || '01'}-${currentParts[2] || '01'}`);
-                    setDateError('');
-                  }}
-                  className="px-4 py-4 rounded-2xl border-2 backdrop-blur-sm focus:outline-none transition-all duration-300"
-                  style={{
-                    backgroundColor: selectedProfession?.colors.background + '20' || 'rgba(255,255,255,0.1)',
-                    borderColor: selectedProfession?.colors.secondary + '60' || 'rgba(255,255,255,0.2)',
-                    color: selectedProfession?.colors.text || '#ffffff',
-                  }}
-                >
-                  <option value="">Year</option>
-                  {Array.from({length: 125}, (_, i) => 2024 - i).map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-                <input
-                  type="date"
-                  value={birthDate}
-                  onChange={(e) => {
-                    setBirthDate(e.target.value);
-                    setDateError(''); // Clear error when user types
-                  }}
-                  min="1900-01-01"
-                  max={new Date().toISOString().split('T')[0]}
-                  className="px-6 py-4 rounded-2xl border-2 backdrop-blur-sm focus:outline-none transition-all duration-300"
-                  style={{
-                    backgroundColor: selectedProfession?.colors.background + '20' || 'rgba(255,255,255,0.1)',
-                    borderColor: dateError 
-                      ? selectedProfession?.colors.error || '#ef4444' 
-                      : selectedProfession?.colors.secondary + '60' || 'rgba(255,255,255,0.2)',
-                    color: selectedProfession?.colors.text || '#ffffff',
-                    colorScheme: 'light'
-                  }}     
-                  onFocus={(e) => {
-                    if (!dateError) {
-                      e.target.style.borderColor = selectedProfession?.colors.primary || '#3b82f6';
-                    }
-                  }}
-                  onBlur={(e) => {
-                    if (!dateError) {
-                      e.target.style.borderColor = selectedProfession?.colors.secondary + '60' || 'rgba(255,255,255,0.2)';
-                    }
-                  }}
-                />
-                
-                
-              </div>
+              <input
+                type="date"
+                value={birthDate}
+                onChange={(e) => {
+                  setBirthDate(e.target.value);
+                  setDateError(''); // Clear error when user types
+                }}
+                min="1900-01-01"
+                max={new Date().toISOString().split('T')[0]}
+                className="w-full px-6 py-4 rounded-2xl border-2 backdrop-blur-sm focus:outline-none transition-all duration-300"
+                style={{
+                  backgroundColor: selectedProfession?.colors.background + '20' || 'rgba(255,255,255,0.1)',
+                  borderColor: dateError 
+                    ? selectedProfession?.colors.error || '#ef4444' 
+                    : selectedProfession?.colors.secondary + '60' || 'rgba(255,255,255,0.2)',
+                  color: selectedProfession?.colors.text || '#ffffff',
+                  colorScheme: 'light'
+                }}     
+                onFocus={(e) => {
+                  if (!dateError) {
+                    e.target.style.borderColor = selectedProfession?.colors.primary || '#3b82f6';
+                  }
+                }}
+                onBlur={(e) => {
+                  if (!dateError) {
+                    e.target.style.borderColor = selectedProfession?.colors.secondary + '60' || 'rgba(255,255,255,0.2)';
+                  }
+                }}
+              />
               {dateError && (
                 <motion.p
                   initial={{ opacity: 0, y: -10 }}
