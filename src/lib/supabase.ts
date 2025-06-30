@@ -7,38 +7,134 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    // Improve session persistence
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    // Handle email confirmation redirects
+    flowType: 'pkce'
+  }
+})
 
-// Auth helper functions
+// Auth helper functions with improved error handling
 export const signUp = async (email: string, password: string, userData: any) => {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: userData
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: userData,
+        // Use the current origin for email confirmation redirect
+        emailRedirectTo: `${window.location.origin}/auth/callback`
+      }
+    })
+    return { data, error }
+  } catch (err) {
+    console.error('SignUp error:', err)
+    return { 
+      data: null, 
+      error: { message: err instanceof Error ? err.message : 'Registration failed' } 
     }
-  })
-  return { data, error }
+  }
 }
 
 export const signIn = async (email: string, password: string) => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password
-  })
-  return { data, error }
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
+    return { data, error }
+  } catch (err) {
+    console.error('SignIn error:', err)
+    return { 
+      data: null, 
+      error: { message: err instanceof Error ? err.message : 'Login failed' } 
+    }
+  }
 }
 
 export const signOut = async () => {
-  const { error } = await supabase.auth.signOut()
-  return { error }
+  try {
+    const { error } = await supabase.auth.signOut()
+    return { error }
+  } catch (err) {
+    console.error('SignOut error:', err)
+    return { error: { message: err instanceof Error ? err.message : 'Logout failed' } }
+  }
 }
 
 export const getCurrentUser = async () => {
-  const { data: { user }, error } = await supabase.auth.getUser()
-  return { user, error }
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    return { user, error }
+  } catch (err) {
+    console.error('GetCurrentUser error:', err)
+    return { 
+      user: null, 
+      error: { message: err instanceof Error ? err.message : 'Failed to get user' } 
+    }
+  }
 }
 
 export const onAuthStateChange = (callback: (event: string, session: any) => void) => {
-  return supabase.auth.onAuthStateChange(callback)
+  return supabase.auth.onAuthStateChange((event, session) => {
+    try {
+      callback(event, session)
+    } catch (err) {
+      console.error('Auth state change callback error:', err)
+    }
+  })
+}
+
+// Helper function to check if user's email is confirmed
+export const isEmailConfirmed = (user: any): boolean => {
+  return !!(user?.email_confirmed_at)
+}
+
+// Helper function to resend confirmation email
+export const resendConfirmation = async (email: string) => {
+  try {
+    const { data, error } = await supabase.auth.resend({
+      type: 'signup',
+      email: email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`
+      }
+    })
+    return { data, error }
+  } catch (err) {
+    console.error('Resend confirmation error:', err)
+    return { 
+      data: null, 
+      error: { message: err instanceof Error ? err.message : 'Failed to resend confirmation' } 
+    }
+  }
+}
+
+// Helper function to manually confirm user (for development/testing)
+export const confirmUser = async (email: string) => {
+  try {
+    // This is for development purposes only
+    // In production, users should click the email link
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password: 'temp' // This will fail but trigger the flow
+    })
+    
+    // If the error is about unconfirmed email, we can try to resend
+    if (error && error.message.includes('Email not confirmed')) {
+      return await resendConfirmation(email)
+    }
+    
+    return { data, error }
+  } catch (err) {
+    console.error('Confirm user error:', err)
+    return { 
+      data: null, 
+      error: { message: err instanceof Error ? err.message : 'Failed to confirm user' } 
+    }
+  }
 }
