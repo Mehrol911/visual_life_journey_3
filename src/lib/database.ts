@@ -94,6 +94,98 @@ export interface UserPreferences {
   updated_at: string
 }
 
+export interface ProfileUpdate {
+  id: string
+  user_id: string
+  update_type: string
+  old_value?: Record<string, any>
+  new_value?: Record<string, any>
+  created_at: string
+}
+
+// Profile Updates API with improved error handling
+export const profileUpdatesAPI = {
+  async getUpdateCount(): Promise<number> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('User not authenticated')
+
+    try {
+      const { data, error } = await supabase.rpc('get_user_profile_update_count', {
+        user_uuid: user.id
+      })
+      
+      if (error) {
+        console.error('Error getting update count:', error)
+        return 0 // Return 0 on error to be safe
+      }
+      
+      return data || 0
+    } catch (error) {
+      console.error('Error in getUpdateCount:', error)
+      return 0
+    }
+  },
+
+  async canUserUpdate(): Promise<boolean> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return false
+
+    try {
+      const { data, error } = await supabase.rpc('can_user_update_profile', {
+        user_uuid: user.id,
+        max_updates: 3
+      })
+      
+      if (error) {
+        console.error('Error checking update permission:', error)
+        return false
+      }
+      
+      return data || false
+    } catch (error) {
+      console.error('Error in canUserUpdate:', error)
+      return false
+    }
+  },
+
+  async getUpdateHistory(): Promise<ProfileUpdate[]> {
+    try {
+      const { data, error } = await supabase
+        .from('profile_updates')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      return data || []
+    } catch (error) {
+      console.error('Error getting update history:', error)
+      return []
+    }
+  },
+
+  async logUpdate(updateType: string, oldValue?: any, newValue?: any): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('User not authenticated')
+
+    try {
+      const { error } = await supabase.rpc('log_profile_update', {
+        user_uuid: user.id,
+        update_type_param: updateType,
+        old_value_param: oldValue || null,
+        new_value_param: newValue || null
+      })
+      
+      if (error) {
+        console.error('Error logging update:', error)
+        throw error
+      }
+    } catch (error) {
+      console.error('Error in logUpdate:', error)
+      throw error
+    }
+  }
+}
+
 // Daily Reflections API
 export const dailyReflectionsAPI = {
   async getAll(): Promise<DailyReflection[]> {
@@ -451,29 +543,48 @@ export const travelVisitsAPI = {
   }
 }
 
-// User Preferences API
+// User Preferences API with improved error handling
 export const userPreferencesAPI = {
   async get(): Promise<UserPreferences | null> {
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .select('*')
-      .single()
-    
-    if (error && error.code !== 'PGRST116') throw error
-    return data
+    try {
+      const { data, error } = await supabase
+        .from('user_preferences')
+        .select('*')
+        .single()
+      
+      if (error && error.code !== 'PGRST116') throw error
+      return data
+    } catch (error) {
+      console.error('Error getting user preferences:', error)
+      return null
+    }
   },
 
   async upsert(preferences: Record<string, any>): Promise<UserPreferences> {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('User not authenticated')
 
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .upsert({ user_id: user.id, preferences })
-      .select()
-      .single()
-    
-    if (error) throw error
-    return data
+    try {
+      // Use the safe upsert function to handle duplicate key constraints
+      const { error: upsertError } = await supabase.rpc('safe_upsert_user_preferences', {
+        user_uuid: user.id,
+        preferences_data: preferences
+      })
+      
+      if (upsertError) throw upsertError
+
+      // Fetch the updated record
+      const { data, error: fetchError } = await supabase
+        .from('user_preferences')
+        .select('*')
+        .eq('user_id', user.id)
+        .single()
+      
+      if (fetchError) throw fetchError
+      return data
+    } catch (error) {
+      console.error('Error upserting user preferences:', error)
+      throw error
+    }
   }
 }
